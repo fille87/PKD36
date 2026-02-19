@@ -1,5 +1,26 @@
 {
+  "name": "untypescript",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/fille87/PKD36#readme",
+  "bugs": {
+    "url": "https://github.com/fille87/PKD36/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fille87/PKD36.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "dependencies": {
-    "tree-model": "^1.0.7"
+    "tree-model": "1.0.7"
   }
 }
