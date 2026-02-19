@@ -25,21 +25,22 @@ type ParseError = {
     line_index: number,
 }
 
-export type Token = TokenType | ValueToken;
-type Value = number | string;
-
-
-type ValueToken = {
+export type Token = BareToken | LiteralToken;
+type LiteralToken = {
     type: TokenType,
-    value: Value | null,
+    value: Literal,
 }
+type BareToken = {
+    type: TokenType,
+}
+
+type Literal = number | string;
 
 type ScannerResult = List<Token> | List<Error>;
 
 // A string with length 1
 type Character = string; 
 
-// State information for the scanner
 type Scanner = {
     errored: boolean;
     input: string;
@@ -73,7 +74,7 @@ function scanner_init(input: string): Scanner {
  * @param result The scan results
  * @returns True if there are any errors, false otherwise
  */
-export function has_errors(result: ScannerResult): boolean {
+export function has_errors(result: ScannerResult): result is List<Error> {
     if(result === null) {
         return false;
     }
@@ -101,6 +102,17 @@ function is_digit(str: Character | null): boolean {
     }
     const n = Number(str);
     return !isNaN(n) && n >= 0 && n <= 9;
+}
+
+export function token(type: TokenType): BareToken {
+    return { type };
+}
+
+export function literal(type: TokenType.NUMBER_LIT, value: Literal) {
+    return {
+        type,
+        value,
+    };
 }
 
 /**
@@ -144,7 +156,7 @@ export function scan(input: string): ScannerResult {
     }
 
     // Scan a floating point number, emitting an error on faulty syntax
-    function scan_number(): Token | null {
+    function scan_number(): LiteralToken | null {
         const start = scanner.index;
         while(is_digit(peek())) {
             consume();
@@ -182,7 +194,7 @@ export function scan(input: string): ScannerResult {
         if (skip_line) {
             if (ch === "\0") {
                 return !scanner.errored
-                    ? append(output, TokenType.EOF)
+                    ? append(output, token(TokenType.EOF))
                     : errors;
             } else if (ch === "\n") {
                 skip_line = false;
@@ -195,23 +207,23 @@ export function scan(input: string): ScannerResult {
         switch (ch) {
             case "\0":
                 return !scanner.errored
-                    ? append(output, TokenType.EOF)
+                    ? append(output, token(TokenType.EOF))
                     : errors;
             case "\n":
                 scanner.line_index = 0;
                 scanner.line_number += 1;
                 break;
             case "+":
-                output = append(output, TokenType.PLUS);
+                output = append(output, token(TokenType.PLUS));
                 break;
             case "-":
-                output = append(output, TokenType.MINUS);
+                output = append(output, token(TokenType.MINUS));
                 break;
             case "*":
-                output = append(output, TokenType.TIMES);
+                output = append(output, token(TokenType.TIMES));
                 break;
             case "/":
-                output = append(output, TokenType.DIVIDE);
+                output = append(output, token(TokenType.DIVIDE));
                 break;
             default:
                 if (is_whitespace(ch)) { 
