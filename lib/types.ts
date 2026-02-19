@@ -1,3 +1,6 @@
+export type Value = {
+
+};
 type Operator = "+" | "-" | "*" | "/";
 type Literal = number | string | boolean;
 type OperatorCombination = Unary | Binary;
