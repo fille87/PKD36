@@ -25,13 +25,9 @@ type ParseError = {
     line_index: number,
 }
 
-export type Token = BareToken | LiteralToken;
-type LiteralToken = {
+export type Token = {
     type: TokenType,
-    value: Literal,
-}
-type BareToken = {
-    type: TokenType,
+    value: Literal | undefined,
 }
 
 type Literal = number | string;
@@ -104,11 +100,7 @@ function is_digit(str: Character | null): boolean {
     return !isNaN(n) && n >= 0 && n <= 9;
 }
 
-export function token(type: TokenType): BareToken {
-    return { type };
-}
-
-export function literal(type: TokenType.NUMBER_LIT, value: Literal) {
+export function token(type: TokenType, value?: Literal) {
     return {
         type,
         value,
@@ -156,7 +148,7 @@ export function scan(input: string): ScannerResult {
     }
 
     // Scan a floating point number, emitting an error on faulty syntax
-    function scan_number(): LiteralToken | null {
+    function scan_number(): Token | null {
         const start = scanner.index;
         while(is_digit(peek())) {
             consume();
@@ -172,10 +164,11 @@ export function scan(input: string): ScannerResult {
         while(is_digit(peek())) {
             consume();
         }
-        return {
-            type: TokenType.NUMBER_LIT,
-            value: Number(scanner.input.substring(start, scanner.index)),
-        };
+
+        return token(
+            TokenType.NUMBER_LIT, 
+            Number(scanner.input.substring(start, scanner.index))
+        );
     }
 
     // Appends an element to the end of a List
@@ -190,7 +183,8 @@ export function scan(input: string): ScannerResult {
 
     while(true) {
         const ch = peek();
-        // If we encounter an error during parsing, skip the rest of the line to not spam errors on every character afterwards
+        // If we encounter an error during parsing, 
+        // skip the rest of the line to not spam errors afterwards
         if (skip_line) {
             if (ch === "\0") {
                 return !scanner.errored
