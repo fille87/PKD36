@@ -7,6 +7,8 @@ export enum TokenType {
     TIMES,
     DIVIDE,
     NUMBER_LIT,
+    RIGHT_PAREN,
+    LEFT_PAREN,
     EOF,
 }
 
@@ -219,6 +221,12 @@ export function scan(input: string): ScannerResult {
             case "/":
                 output = append(output, token(TokenType.DIVIDE));
                 break;
+            case "(":
+                output = append(output, token(TokenType.LEFT_PAREN));
+                break;
+            case ")":
+                output = append(output, token(TokenType.RIGHT_PAREN));
+                break;
             default:
                 if (is_whitespace(ch)) { 
                     break;
@@ -227,6 +235,7 @@ export function scan(input: string): ScannerResult {
                     if (n !== null) {
                         output = append(output, n);
                     }
+                    continue; // The number scanning already advances to the right position
                 } else {
                     error("Unrecognized character '" + ch + "'!");
                 }

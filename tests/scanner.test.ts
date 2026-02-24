@@ -71,6 +71,17 @@ test("Scan division", () => {
     expect(scan(s)).toStrictEqual(expected);
 })
 
+test("Scan parentheses", () => {
+    const s = "(1)";
+    const expected = list<Token>(
+        token(TokenType.LEFT_PAREN), 
+        token(TokenType.NUMBER_LIT, 1), 
+        token(TokenType.RIGHT_PAREN), 
+        token(TokenType.EOF),
+    );
+    expect(scan(s)).toStrictEqual(expected);
+})
+
 test("Multi line", () => {
     const s = "1 \n 2 \n 3";
     const expected = list<Token>(
