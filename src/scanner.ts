@@ -7,46 +7,41 @@ export enum TokenType {
     TIMES,
     DIVIDE,
     NUMBER_LIT,
+    RIGHT_PAREN,
+    LEFT_PAREN,
     EOF,
 }
 
 // Temporary error handling
 interface Error {
     message: string,
-    line: string,
-    line_number: number,
-    line_index: number,
+    index: number,
 }
 
 type ParseError = {
     message: string,
-    line: string,
-    line_number: number,
-    line_index: number,
+    index: number,
 }
 
-export type Token = TokenType | ValueToken;
-type Value = number | string;
-
-
-type ValueToken = {
+export type Token = {
     type: TokenType,
-    value: Value | null,
+    index: number,
+    value: Literal | undefined,
 }
 
+type Literal = number | string;
+
+// TODO: Change to arrays
 type ScannerResult = List<Token> | List<Error>;
 
 // A string with length 1
 type Character = string; 
 
-// State information for the scanner
 type Scanner = {
     errored: boolean;
     input: string;
     input_length: number;
     output: List<Token>;
-    line_number: number;
-    line_index: number;
     index: number;
 };
 
@@ -61,8 +56,6 @@ function scanner_init(input: string): Scanner {
         input,
         input_length: input.length,
         output: list(),
-        line_number: 0,
-        line_index: 0,
         index: 0,
     }
 }
@@ -73,7 +66,7 @@ function scanner_init(input: string): Scanner {
  * @param result The scan results
  * @returns True if there are any errors, false otherwise
  */
-export function has_errors(result: ScannerResult): boolean {
+export function has_errors(result: ScannerResult): result is List<Error> {
     if(result === null) {
         return false;
     }
@@ -103,6 +96,14 @@ function is_digit(str: Character | null): boolean {
     return !isNaN(n) && n >= 0 && n <= 9;
 }
 
+export function token(index: number, type: TokenType, value?: Literal) {
+    return {
+        type,
+        index,
+        value,
+    };
+}
+
 /**
  * Scans an input string for tokens
  * @param input Input string to scan
@@ -114,11 +115,17 @@ export function scan(input: string): ScannerResult {
         scanner.errored = true;
         const error: ParseError = {
             message: message,
-            line: current_line(),
-            line_number: scanner.line_number,
-            line_index: scanner.line_index,
+            index: scanner.index,
         };
         errors = append(errors, error);
+    }
+
+    function make_token(type: TokenType, value?: Literal) {
+        return {
+            type,
+            index: scanner.index,
+            value,
+        };
     }
 
     // Peeks at the current character or ahead with a custom offset
@@ -132,16 +139,15 @@ export function scan(input: string): ScannerResult {
     function consume() {
         const value = peek();
         scanner.index += 1;
-        scanner.line_index += 1;
         return value;
     }
 
-    // Gets the entire line that's currently being scanned
-    function current_line(): string {
-        // Safety: We only increment line_number when finding a \n, 
-        // so splitting by \n then indexing by line_number will always be defined
-        return scanner.input.split("\n")[scanner.line_number]!;
-    }
+    // // Gets the entire line that's currently being scanned
+    // function current_line(): string {
+    //     // Safety: We only increment line_number when finding a \n, 
+    //     // so splitting by \n then indexing by line_number will always be defined
+    //     return scanner.input.split("\n")[scanner.line_number]!;
+    // }
 
     // Scan a floating point number, emitting an error on faulty syntax
     function scan_number(): Token | null {
@@ -160,10 +166,12 @@ export function scan(input: string): ScannerResult {
         while(is_digit(peek())) {
             consume();
         }
-        return {
-            type: TokenType.NUMBER_LIT,
-            value: Number(scanner.input.substring(start, scanner.index)),
-        };
+
+        return token(
+            start,
+            TokenType.NUMBER_LIT, 
+            Number(scanner.input.substring(start, scanner.index))
+        );
     }
 
     // Appends an element to the end of a List
@@ -178,16 +186,15 @@ export function scan(input: string): ScannerResult {
 
     while(true) {
         const ch = peek();
-        // If we encounter an error during parsing, skip the rest of the line to not spam errors on every character afterwards
+        // If we encounter an error during parsing, 
+        // skip the rest of the line to not spam errors afterwards
         if (skip_line) {
             if (ch === "\0") {
                 return !scanner.errored
-                    ? append(output, TokenType.EOF)
+                    ? append(output, make_token(TokenType.EOF))
                     : errors;
             } else if (ch === "\n") {
                 skip_line = false;
-                scanner.line_index = 0;
-                scanner.line_number += 1;
             }
             consume();
             continue;
@@ -195,23 +202,27 @@ export function scan(input: string): ScannerResult {
         switch (ch) {
             case "\0":
                 return !scanner.errored
-                    ? append(output, TokenType.EOF)
+                    ? append(output, make_token(TokenType.EOF))
                     : errors;
-            case "\n":
-                scanner.line_index = 0;
-                scanner.line_number += 1;
-                break;
             case "+":
-                output = append(output, TokenType.PLUS);
+                output = append(output, make_token(TokenType.PLUS));
+                break;
+            case "\n":
                 break;
             case "-":
-                output = append(output, TokenType.MINUS);
+                output = append(output, make_token(TokenType.MINUS));
                 break;
             case "*":
-                output = append(output, TokenType.TIMES);
+                output = append(output, make_token(TokenType.TIMES));
                 break;
             case "/":
-                output = append(output, TokenType.DIVIDE);
+                output = append(output, make_token(TokenType.DIVIDE));
+                break;
+            case "(":
+                output = append(output, make_token(TokenType.LEFT_PAREN));
+                break;
+            case ")":
+                output = append(output, make_token(TokenType.RIGHT_PAREN));
                 break;
             default:
                 if (is_whitespace(ch)) { 
@@ -221,6 +232,7 @@ export function scan(input: string): ScannerResult {
                     if (n !== null) {
                         output = append(output, n);
                     }
+                    continue; // The number scanning already advances to the right position
                 } else {
                     error("Unrecognized character '" + ch + "'!");
                 }
