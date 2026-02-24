@@ -157,7 +157,8 @@ export function scan(input: string): ScannerResult {
         }
         if(peek() === ".") {
             if (!is_digit(peek(1))) {
-                error("Expected digit after '.', got '" + peek(1) + "'!");
+                consume();
+                error("Invalid number literal. Expected digit after '.', got '" + peek() + "'!");
                 skip_line = true;
                 return null;
             }

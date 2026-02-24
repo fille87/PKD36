@@ -1,6 +1,19 @@
 import { readFileSync } from "fs";
+import { init as error_display_init } from "./error";
+import { scan, has_errors } from "./scanner";
+import { resolve } from "path";
+import { exit } from "process";
 
-const fileData: string = readFileSync("textfile.txt" //Replace with name of the text file
-                                    , "utf8");
+const SOURCE_FILE = "../tests/source.txt";
+const fileData: string = readFileSync(resolve(__dirname, SOURCE_FILE), "utf8");
 
-console.log(fileData);
+const display_errors = error_display_init(fileData);
+const res = scan(fileData);
+
+if (has_errors(res)){
+    display_errors(res);
+    exit(1);
+}
+
+console.log(res);
+exit(0);
