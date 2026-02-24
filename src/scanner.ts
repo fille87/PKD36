@@ -15,25 +15,23 @@ export enum TokenType {
 // Temporary error handling
 interface Error {
     message: string,
-    line: string,
-    line_number: number,
-    line_index: number,
+    index: number,
 }
 
 type ParseError = {
     message: string,
-    line: string,
-    line_number: number,
-    line_index: number,
+    index: number,
 }
 
 export type Token = {
     type: TokenType,
+    index: number,
     value: Literal | undefined,
 }
 
 type Literal = number | string;
 
+// TODO: Change to arrays
 type ScannerResult = List<Token> | List<Error>;
 
 // A string with length 1
@@ -44,8 +42,6 @@ type Scanner = {
     input: string;
     input_length: number;
     output: List<Token>;
-    line_number: number;
-    line_index: number;
     index: number;
 };
 
@@ -60,8 +56,6 @@ function scanner_init(input: string): Scanner {
         input,
         input_length: input.length,
         output: list(),
-        line_number: 0,
-        line_index: 0,
         index: 0,
     }
 }
@@ -102,9 +96,10 @@ function is_digit(str: Character | null): boolean {
     return !isNaN(n) && n >= 0 && n <= 9;
 }
 
-export function token(type: TokenType, value?: Literal) {
+export function token(index: number, type: TokenType, value?: Literal) {
     return {
         type,
+        index,
         value,
     };
 }
@@ -120,11 +115,17 @@ export function scan(input: string): ScannerResult {
         scanner.errored = true;
         const error: ParseError = {
             message: message,
-            line: current_line(),
-            line_number: scanner.line_number,
-            line_index: scanner.line_index,
+            index: scanner.index,
         };
         errors = append(errors, error);
+    }
+
+    function make_token(type: TokenType, value?: Literal) {
+        return {
+            type,
+            index: scanner.index,
+            value,
+        };
     }
 
     // Peeks at the current character or ahead with a custom offset
@@ -138,16 +139,15 @@ export function scan(input: string): ScannerResult {
     function consume() {
         const value = peek();
         scanner.index += 1;
-        scanner.line_index += 1;
         return value;
     }
 
-    // Gets the entire line that's currently being scanned
-    function current_line(): string {
-        // Safety: We only increment line_number when finding a \n, 
-        // so splitting by \n then indexing by line_number will always be defined
-        return scanner.input.split("\n")[scanner.line_number]!;
-    }
+    // // Gets the entire line that's currently being scanned
+    // function current_line(): string {
+    //     // Safety: We only increment line_number when finding a \n, 
+    //     // so splitting by \n then indexing by line_number will always be defined
+    //     return scanner.input.split("\n")[scanner.line_number]!;
+    // }
 
     // Scan a floating point number, emitting an error on faulty syntax
     function scan_number(): Token | null {
@@ -168,6 +168,7 @@ export function scan(input: string): ScannerResult {
         }
 
         return token(
+            start,
             TokenType.NUMBER_LIT, 
             Number(scanner.input.substring(start, scanner.index))
         );
@@ -190,12 +191,10 @@ export function scan(input: string): ScannerResult {
         if (skip_line) {
             if (ch === "\0") {
                 return !scanner.errored
-                    ? append(output, token(TokenType.EOF))
+                    ? append(output, make_token(TokenType.EOF))
                     : errors;
             } else if (ch === "\n") {
                 skip_line = false;
-                scanner.line_index = 0;
-                scanner.line_number += 1;
             }
             consume();
             continue;
@@ -203,29 +202,27 @@ export function scan(input: string): ScannerResult {
         switch (ch) {
             case "\0":
                 return !scanner.errored
-                    ? append(output, token(TokenType.EOF))
+                    ? append(output, make_token(TokenType.EOF))
                     : errors;
-            case "\n":
-                scanner.line_index = 0;
-                scanner.line_number += 1;
-                break;
             case "+":
-                output = append(output, token(TokenType.PLUS));
+                output = append(output, make_token(TokenType.PLUS));
+                break;
+            case "\n":
                 break;
             case "-":
-                output = append(output, token(TokenType.MINUS));
+                output = append(output, make_token(TokenType.MINUS));
                 break;
             case "*":
-                output = append(output, token(TokenType.TIMES));
+                output = append(output, make_token(TokenType.TIMES));
                 break;
             case "/":
-                output = append(output, token(TokenType.DIVIDE));
+                output = append(output, make_token(TokenType.DIVIDE));
                 break;
             case "(":
-                output = append(output, token(TokenType.LEFT_PAREN));
+                output = append(output, make_token(TokenType.LEFT_PAREN));
                 break;
             case ")":
-                output = append(output, token(TokenType.RIGHT_PAREN));
+                output = append(output, make_token(TokenType.RIGHT_PAREN));
                 break;
             default:
                 if (is_whitespace(ch)) { 
