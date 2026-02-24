@@ -29,7 +29,8 @@ export type ValueToken = {
 */
 export type Token = {
     type: TokenType,
-    value: Value, // Value | null
+    index: number,
+    value: Value | undefined, // Value | null
 }
 
 
@@ -41,18 +42,23 @@ export type Operation = Unary | Binary;
 
 
 export type Expression = Literal | Unary | Binary | Grouping;
+export type Statement = Declaration | Assignment | ReturnStatement;
+export type Component = Expression | Statement
 
 export type Literal = {
     type: "Literal",
+    index: number,
     value: Value
 }
 export type Unary = {
-    type: "Unary"
+    type: "Unary",
+    index: number,
     operator: UnaOperator;
     operand: Expression;
 };
 export type Binary = {
-    type: "Binary"
+    type: "Binary",
+    index: number,
     operator: BinOperator;
     left: Expression;
     right: Expression;
@@ -63,3 +69,16 @@ export type Grouping = {
 }
 
 
+export function get_sign(token: Token): Value {
+    switch(token.type){
+        case TokenType.PLUS: return "+";
+        case TokenType.MINUS: return "";
+        case TokenType.TIMES: return "";
+        case TokenType.DIVIDE: return "";
+        case TokenType.NUMBER_LIT: return token.value as Value;
+        case TokenType.LEFT_PAREN: return "(";
+        case TokenType.RIGHT_PAREN: return ")";
+        case TokenType.SEMICOLON: return ";";
+        case TokenType.EOF: return "\0";
+    }
+}

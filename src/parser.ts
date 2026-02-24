@@ -3,8 +3,8 @@ import {
     TokenType, Token,
     Grouping,
     UnaOperator,
-    BinOperator
-
+    BinOperator,
+    get_sign
 } from"../lib/types";
 
 function parser_error(message: string): void{
@@ -73,86 +73,109 @@ export function parse(tokens: Token[]): Parser {
     }
 
     //TODO: Iplement recursive descent parsing
-    function parse_expression(): Expression{
-        const expr: Expression = parse_equality()
+    function parse_expression(): Expression | null{
+        const expr: Expression | null = parse_equality()
         return expr;
     }
-    function parse_equality(): Expression{
-        const equal: Expression = parse_comparison();
+    
+    function parse_equality(): Expression| null {
+        const equal: Expression | null = parse_comparison();
         return equal;
     }
-    function parse_comparison(): Expression{
-        const comp: Expression = parse_term();
+    function parse_comparison(): Expression| null{
+        const comp: Expression | null = parse_term();
         return comp;
     }
-    function parse_term(): Expression{
-        const term: Expression = parse_factor();
-        while(match(TokenType.PLUS)){
-            const operator: BinOperator = previous().value as BinOperator
-            const right: Expression = parse_factor();
-            return make_binary(operator, term, right);
+    function parse_term(): Expression| null{
+        const term: Expression | null= parse_factor();
+        while(match(TokenType.PLUS, TokenType.MINUS)){
+            const operator: BinOperator = get_sign(previous()) as BinOperator
+            const right: Expression | null = parse_factor();
+            const index: number = peek().index;
+            if(right === null || term === null){
+                return null
+            }
+            return make_binary(operator, term, right, index);
         }
         return term;
     }
-    function parse_factor(): Expression{
-        const fact: Expression = parse_unary();
+    function parse_factor(): Expression | null{
+        const fact: Expression | null = parse_unary();
         while(match(TokenType.TIMES, TokenType.DIVIDE)){
-            const operator: BinOperator = previous().value as BinOperator;
-            const right: Expression = parse_unary();
-            return make_binary(operator, fact, right)
+            const operator: BinOperator = get_sign(previous()) as BinOperator;
+            const right: Expression | null = parse_unary();
+            const index: number = peek().index; 
+            if(right === null || fact === null){
+                return null
+            }
+            return make_binary(operator, fact, right, index)
         }
         return fact;
     }
-    function parse_unary(): Expression{
+    function parse_unary(): Expression | null{
         if(match(TokenType.MINUS)){
-            const operator: UnaOperator = previous().value as UnaOperator;
-            const operand: Expression = parse_unary()
-            return make_unary(operator, operand)
+            const operator: UnaOperator = get_sign(previous()) as UnaOperator;
+            const operand: Expression | null = parse_unary()
+            const index: number = peek().index;
+            if(operand === null){
+                return null
+            }
+            return make_unary(operator, operand, index)
         }
         return parse_primary();
     }
-    function parse_primary(): Expression{
+
+    function parse_primary(): Expression | null{
         if(match(TokenType.NUMBER_LIT)) {
-            return make_literal(previous().value)
+            const value: Value = get_sign(previous());
+            const index: number = previous().index;
+            return make_literal(value, index)
  
         }
         if(match(TokenType.LEFT_PAREN)) {
             const expr = parse_expression();
-            consume(TokenType.RIGHT_PAREN, 'Expected ")" after expressionn, got:"' + peek().value + '"')
+            consume(TokenType.RIGHT_PAREN, 'Expected ")" after expressionn, got:"' + get_sign(peek()) + '"')
             return expr;
         }
         error("Token not recognized");
         advance();
-        return make_literal(null) // TODO: IDK if a literal shoould have null as value
+        return null
     }
 
     while(!at_end()) {
-        parser.output.push(parse_expression());
+        const expr: Expression | null = parse_expression()
+        if(expr === null){
+            break;
+        }
+        parser.output.push(expr);
     }
     return parser;
 }
 
 
 
-function make_literal(value: Value): Literal {
+function make_literal(value: Value, index: number): Literal {
     return {
         type: "Literal",
+        index,
         value
     }
 }
 
-function make_unary(operator: UnaOperator, expr: Expression): Unary {
+function make_unary(operator: UnaOperator, expr: Expression, index: number): Unary {
     return {
         type: "Unary",
+        index,
         operator,
         operand: expr
     }
 }
 
 function make_binary(operator: BinOperator, left: Expression, 
-                                right: Expression): Binary {
+                                right: Expression, index: number): Binary {
     return {
         type: "Binary",
+        index,
         operator,
         left,
         right,

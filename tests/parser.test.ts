@@ -23,10 +23,10 @@ import {TokenType, Expression, Token, Binary} from "../lib/types";
 
 test("parse 1+1", () => {
     const parser: Parser = parse([
-        {type:TokenType.NUMBER_LIT, value:1},
-        {type:TokenType.PLUS, value:"+"},
-        {type:TokenType.NUMBER_LIT, value:1},
-        {type:TokenType.EOF, value:"\0"}
+        {type:TokenType.NUMBER_LIT, index: 0,value:1},
+        {type:TokenType.PLUS,  index: 0,value:"+"},
+        {type:TokenType.NUMBER_LIT,  index: 0,value:1},
+        {type:TokenType.EOF, index: 0, value:"\0"}
     ]);
     const expexted = [{
         type: "Binary",
@@ -39,9 +39,9 @@ test("parse 1+1", () => {
 
 test("parse -1", () => {
     const parser: Parser = parse([
-        {type:TokenType.MINUS, value:"-"},
-        {type:TokenType.NUMBER_LIT, value:1},
-        {type:TokenType.EOF, value:"\0"}
+        {type:TokenType.MINUS,  index: 0,value:"-"},
+        {type:TokenType.NUMBER_LIT,  index: 0,value:1},
+        {type:TokenType.EOF,  index: 0,value:"\0"}
     ]);
     const expexted = [{
         type: "Unary",
@@ -53,10 +53,10 @@ test("parse -1", () => {
 
 test("parse 2-1", () => {
     const parser: Parser = parse([
-        {type:TokenType.NUMBER_LIT, value:2},
-        {type:TokenType.PLUS, value:"-"},
-        {type:TokenType.NUMBER_LIT, value:1},
-        {type:TokenType.EOF, value:"\0"}
+        {type:TokenType.NUMBER_LIT, index: 0, value:2},
+        {type:TokenType.PLUS,  index: 0,value:"-"},
+        {type:TokenType.NUMBER_LIT,  index: 0,value:1},
+        {type:TokenType.EOF,  index: 0,value:"\0"}
     ]);
     const expexted = [{
         type: "Binary",
@@ -69,14 +69,14 @@ test("parse 2-1", () => {
 
 test("parse 1+(2*3)", () => {
     const parser: Parser = parse([
-        {type:TokenType.NUMBER_LIT, value:1},
-        {type:TokenType.PLUS, value:"+"},
-        {type:TokenType.LEFT_PAREN, value:"("},
-        {type:TokenType.NUMBER_LIT, value:2},
-        {type:TokenType.TIMES, value:"*"},
-        {type:TokenType.NUMBER_LIT, value:3},
-        {type:TokenType.RIGHT_PAREN, value:")"},
-        {type:TokenType.EOF, value:"\0"}
+        {type:TokenType.NUMBER_LIT,  index: 0,value:1},
+        {type:TokenType.PLUS,  index: 0,value:"+"},
+        {type:TokenType.LEFT_PAREN,  index: 0,value:"("},
+        {type:TokenType.NUMBER_LIT,  index: 0,value:2},
+        {type:TokenType.TIMES,  index: 0,value:"*"},
+        {type:TokenType.NUMBER_LIT,  index: 0,value:3},
+        {type:TokenType.RIGHT_PAREN,  index: 0,value:")"},
+        {type:TokenType.EOF,  index: 0,value:"\0"}
     ]);
     const expexted = [{
         type: "Binary",
