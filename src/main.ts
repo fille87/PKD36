@@ -8,9 +8,11 @@ const SOURCE_FILE = "../tests/source.txt";
 const fileData: string = readFileSync(resolve(__dirname, SOURCE_FILE), "utf8");
 
 const display_errors = error_display_init(fileData);
+
 const res = scan(fileData);
 
 if (has_errors(res)){
+    console.log("Could not parse source file " + SOURCE_FILE + "!\n");
     display_errors(res);
     exit(1);
 }

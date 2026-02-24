@@ -9,6 +9,8 @@ type Line = {
     start_index: number,
 }
 
+const WIDTH_LIMIT = 100;
+
 export function init(source: string): (es: Array<Error>) => void {
     function display_errors(es: Array<Error>) {
         for (let i = 0; i < es.length; i += 1) {
@@ -23,9 +25,14 @@ export function init(source: string): (es: Array<Error>) => void {
             return;
         }
 
-        console.log("Error at line " + line.line_number + ": " + e.message);
-        console.log(line.source);
-        console.log(make_pointer(line, e.index))
+        const margin_width = line.line_number.toString().length + 2; // One trailing space plus |
+        const indentation = " ".repeat(4);
+        const margin = "|".padStart(margin_width) + indentation;
+
+        console.log("Error: " + e.message);
+        console.log(margin);
+        console.log(line.line_number.toString() + " |" + indentation + line.source);
+        console.log(margin + make_pointer(line, e.index))
         console.log();
     }
 
@@ -48,8 +55,12 @@ export function init(source: string): (es: Array<Error>) => void {
 
     function make_pointer(line: Line, index: number): string {
         const position = index - line.start_index;
-        const out = "".padStart(position, " ") + "^" + "-".repeat(line.source.length - position - 1) + " Here";
-        return out;
+        // if (line.source.length > WIDTH_LIMIT && position >= 6) {
+        //     out = "Here ---^".padStart(position, " ");
+        // } else {
+        //     out = "".padStart(position, " ") + "^" + "-".repeat(line.source.length - position - 1) + " Here";
+        // }
+        return "".padStart(position, " ") + "^ Here";
     }
 
     return (es: Array<Error>) => display_errors(es);

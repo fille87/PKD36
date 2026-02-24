@@ -1,5 +1,6 @@
 // import { Value } from "../lib/types";
 import { List, list, append as append_list, head } from "../lib/list";
+import { Error } from "./error";
 
 export enum TokenType {
     PLUS,
@@ -10,12 +11,6 @@ export enum TokenType {
     RIGHT_PAREN,
     LEFT_PAREN,
     EOF,
-}
-
-// Temporary error handling
-interface Error {
-    message: string,
-    index: number,
 }
 
 type ParseError = {
@@ -158,7 +153,7 @@ export function scan(input: string): ScannerResult {
         if(peek() === ".") {
             if (!is_digit(peek(1))) {
                 consume();
-                error("Invalid number literal. Expected digit after '.', got '" + peek() + "'!");
+                error("Invalid number literal. Expected digit after '.', got '" + peek() + "'");
                 skip_line = true;
                 return null;
             }
@@ -236,7 +231,7 @@ export function scan(input: string): ScannerResult {
                     }
                     continue; // The number scanning already advances to the right position
                 } else {
-                    error("Unrecognized character '" + ch + "'!");
+                    error("Unrecognized character '" + ch + "'");
                     skip_line = true;
                 }
                 break;
