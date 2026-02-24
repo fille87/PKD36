@@ -19,31 +19,32 @@ Assignments are made with the var keyword.
 
 ## Loops and blocks
 A block implicitly returns the last statement, allowing syntax like:
-``
+  
+```
 var x = {
     var y = 1 + 2;
     y
-} :: x = 3``
+} :: x = 3```
   
-``
+```
 var y = if true { 1 } else { 3 } :: y = 1
-``
+```
   
 An infinite loop can be declared with the loop keyword
 While conditions don't require parentheses
 Loops and breaks/continues can be labeled with the syntax:
   
-``
+```
 loop; name {
     break name;
 }
-``
+```
   
-``
+```
 while x == 2; name {
     break name;
 }
-``
+```
 
 ## Statements and expressions
 Every statement ends with a semicolon
