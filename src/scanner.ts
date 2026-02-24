@@ -32,7 +32,7 @@ export type Token = {
 type Literal = number | string;
 
 // TODO: Change to arrays
-type ScannerResult = List<Token> | List<Error>;
+type ScannerResult = Array<Token> | Array<Error>;
 
 // A string with length 1
 type Character = string; 
@@ -41,7 +41,7 @@ type Scanner = {
     errored: boolean;
     input: string;
     input_length: number;
-    output: List<Token>;
+    output: Array<Token>;
     index: number;
 };
 
@@ -55,7 +55,7 @@ function scanner_init(input: string): Scanner {
         errored: false,
         input,
         input_length: input.length,
-        output: list(),
+        output: [],
         index: 0,
     }
 }
@@ -66,11 +66,11 @@ function scanner_init(input: string): Scanner {
  * @param result The scan results
  * @returns True if there are any errors, false otherwise
  */
-export function has_errors(result: ScannerResult): result is List<Error> {
-    if(result === null) {
+export function has_errors(result: ScannerResult): result is Array<Error> {
+    if(result.length === 0) {
         return false;
     }
-    const first = head<Token | Error, List<Token> | List<Error>>(result);
+    const first = result[0];
     return (first as Error).message !== undefined;
 }
 
@@ -117,7 +117,7 @@ export function scan(input: string): ScannerResult {
             message: message,
             index: scanner.index,
         };
-        errors = append(errors, error);
+        errors.push(error);
     }
 
     function make_token(type: TokenType, value?: Literal) {
@@ -174,14 +174,9 @@ export function scan(input: string): ScannerResult {
         );
     }
 
-    // Appends an element to the end of a List
-    function append<T>(ls: List<T>, element: T): List<T> {
-        return append_list(ls, list(element));
-    }
-
     let scanner = scanner_init(input);
-    let output = list<Token>();
-    let errors = list<Error>();
+    let output: Array<Token> = [];
+    let errors: Array<Error> = [];
     let skip_line = false;
 
     while(true) {
@@ -190,9 +185,12 @@ export function scan(input: string): ScannerResult {
         // skip the rest of the line to not spam errors afterwards
         if (skip_line) {
             if (ch === "\0") {
-                return !scanner.errored
-                    ? append(output, make_token(TokenType.EOF))
-                    : errors;
+                if (!scanner.errored) {
+                    output.push(make_token(TokenType.EOF));
+                    return output;
+                } else {
+                    return errors;
+                }
             } else if (ch === "\n") {
                 skip_line = false;
             }
@@ -201,28 +199,31 @@ export function scan(input: string): ScannerResult {
         }
         switch (ch) {
             case "\0":
-                return !scanner.errored
-                    ? append(output, make_token(TokenType.EOF))
-                    : errors;
+                if (!scanner.errored) {
+                    output.push(make_token(TokenType.EOF));
+                    return output;
+                } else {
+                    return errors;
+                }
             case "+":
-                output = append(output, make_token(TokenType.PLUS));
+                output.push(make_token(TokenType.PLUS));
                 break;
             case "\n":
                 break;
             case "-":
-                output = append(output, make_token(TokenType.MINUS));
+                output.push(make_token(TokenType.MINUS));
                 break;
             case "*":
-                output = append(output, make_token(TokenType.TIMES));
+                output.push(make_token(TokenType.TIMES));
                 break;
             case "/":
-                output = append(output, make_token(TokenType.DIVIDE));
+                output.push(make_token(TokenType.DIVIDE));
                 break;
             case "(":
-                output = append(output, make_token(TokenType.LEFT_PAREN));
+                output.push(make_token(TokenType.LEFT_PAREN));
                 break;
             case ")":
-                output = append(output, make_token(TokenType.RIGHT_PAREN));
+                output.push(make_token(TokenType.RIGHT_PAREN));
                 break;
             default:
                 if (is_whitespace(ch)) { 
@@ -230,11 +231,12 @@ export function scan(input: string): ScannerResult {
                 } else if (is_digit(ch)) {
                     const n = scan_number();
                     if (n !== null) {
-                        output = append(output, n);
+                        output.push(n);
                     }
                     continue; // The number scanning already advances to the right position
                 } else {
                     error("Unrecognized character '" + ch + "'!");
+                    skip_line = true;
                 }
                 break;
         }
