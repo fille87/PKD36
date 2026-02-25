@@ -10,8 +10,16 @@ if (source_file === undefined) {
     exit(1);
 }
 
+
 const path = resolve(__dirname, source_file);
-const source: string = readFileSync(path, "utf8");
+let source: string;
+
+try {
+    source = readFileSync(path, "utf8");
+} catch {
+    console.log("Failed to open file '" + path + "'");
+    exit(1);
+}
 
 const display_errors = error_display_init(source);
 
