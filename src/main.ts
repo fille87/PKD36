@@ -1,18 +1,24 @@
 import { readFileSync } from "fs";
 import { init as error_display_init } from "./error";
 import { scan, has_errors } from "./scanner";
-import { resolve } from "path";
+import { resolve, basename } from "path";
 import { exit } from "process";
 
-const SOURCE_FILE = "../tests/source.txt";
-const fileData: string = readFileSync(resolve(__dirname, SOURCE_FILE), "utf8");
+const source_file = process.argv[2];
+if (source_file === undefined) {
+    console.log("No file specified");
+    exit(1);
+}
 
-const display_errors = error_display_init(fileData);
+const path = resolve(__dirname, source_file);
+const source: string = readFileSync(path, "utf8");
 
-const res = scan(fileData);
+const display_errors = error_display_init(source);
+
+const res = scan(source);
 
 if (has_errors(res)){
-    console.log("Could not parse source file " + SOURCE_FILE + "!\n");
+    console.log("Could not parse source file '" + basename(path) + "'!\n");
     display_errors(res);
     exit(1);
 }
