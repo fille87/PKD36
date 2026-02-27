@@ -59,6 +59,17 @@ test("Scan times", () => {
     expect(scan(s)).toStrictEqual(expected);
 })
 
+test("Scan exponentiation", () => {
+    const s = "1 ** 2";
+    const expected = [
+        token(0, TokenType.NUMBER_LIT, 1), 
+        token(2, TokenType.POW),
+        token(5, TokenType.NUMBER_LIT, 2), 
+        token(6, TokenType.EOF),
+    ];
+    expect(scan(s)).toStrictEqual(expected);
+})
+
 test("Scan division", () => {
     const s = "1 / 2";
     const expected = [
@@ -66,6 +77,39 @@ test("Scan division", () => {
         token(2, TokenType.DIVIDE),
         token(4, TokenType.NUMBER_LIT, 2), 
         token(5, TokenType.EOF),
+    ];
+    expect(scan(s)).toStrictEqual(expected);
+})
+
+test("Scan negation", () => {
+    const s = "!false";
+    const expected = [
+        token(0, TokenType.BANG), 
+        token(1, TokenType.FALSE), 
+        token(6, TokenType.EOF),
+    ];
+    expect(scan(s)).toStrictEqual(expected);
+})
+
+test("Scan comparison", () => {
+    const s = "1 < 2 \n 2 > 1 \n true != false \n 0 >= 0 \n 0 <= 0";
+    const expected = [
+        token(0, TokenType.NUMBER_LIT, 1), 
+        token(2, TokenType.LESS), 
+        token(4, TokenType.NUMBER_LIT, 2), 
+        token(8, TokenType.NUMBER_LIT, 2), 
+        token(10, TokenType.GREATER), 
+        token(12, TokenType.NUMBER_LIT, 1), 
+        token(16, TokenType.TRUE), 
+        token(21, TokenType.BANG_EQ), 
+        token(24, TokenType.FALSE), 
+        token(32, TokenType.NUMBER_LIT, 0), 
+        token(34, TokenType.GREATER_EQ), 
+        token(37, TokenType.NUMBER_LIT, 0), 
+        token(41, TokenType.NUMBER_LIT, 0), 
+        token(43, TokenType.LESS_EQ), 
+        token(46, TokenType.NUMBER_LIT, 0), 
+        token(47, TokenType.EOF),
     ];
     expect(scan(s)).toStrictEqual(expected);
 })

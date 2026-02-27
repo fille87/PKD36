@@ -157,7 +157,7 @@ export function scan(input: string): ScannerResult {
     }
 
     // Consumes the current character
-    function consume() {
+    function advance() {
         const value = peek();
         scanner.index += 1;
         return value;
@@ -167,19 +167,19 @@ export function scan(input: string): ScannerResult {
     function scan_number(): Token | null {
         const start = scanner.index;
         while(is_digit(peek())) {
-            consume();
+            advance();
         }
         if(peek() === ".") {
             if (!is_digit(peek(1))) {
-                consume();
+                advance();
                 error("Invalid number literal. Expected digit after '.', got '" + peek() + "'");
                 skip_line = true;
                 return null;
             }
-            consume();
+            advance();
         }
         while(is_digit(peek())) {
-            consume();
+            advance();
         }
 
         return token(
@@ -195,16 +195,16 @@ export function scan(input: string): ScannerResult {
         if (peek() !==  '"') {
             return null;
         }
-        consume();
+        advance();
         while(true) {
             if (peek() === "\0") {
                 error_at("String literal was never closed.", start);
                 return null;
             } else if (peek() === '"') {
-                consume();
+                advance();
                 break;
             }
-            consume();
+            advance();
         }
 
         return token(
@@ -218,7 +218,7 @@ export function scan(input: string): ScannerResult {
     function scan_identifier(): Token {
         const start = scanner.index;
         while(is_letter(peek()) || is_digit(peek())) {
-            consume();
+            advance();
         }
 
         return token(
@@ -266,7 +266,7 @@ export function scan(input: string): ScannerResult {
             } else if (ch === "\n") {
                 skip_line = false;
             }
-            consume();
+            advance();
             continue;
         }
         switch (ch) {
@@ -289,7 +289,12 @@ export function scan(input: string): ScannerResult {
                 output.push(make_token(TokenType.MINUS));
                 break;
             case "*":
-                output.push(make_token(TokenType.TIMES));
+                if (peek(1) === "*") {
+                    output.push(make_token(TokenType.POW));
+                    advance();
+                } else {
+                    output.push(make_token(TokenType.TIMES));
+                }
                 break;
             case "/":
                 output.push(make_token(TokenType.DIVIDE));
@@ -325,10 +330,33 @@ export function scan(input: string): ScannerResult {
             case "=":
                 if (peek(1) === "=") {
                     output.push(make_token(TokenType.DOUBLE_EQUAL));
-                    consume();
+                    advance();
                 } else {
                     output.push(make_token(TokenType.EQUAL));
-                    break;
+                }
+                break;
+            case "!":
+                if (peek(1) === "=") {
+                    output.push(make_token(TokenType.BANG_EQ));
+                    advance();
+                } else {
+                    output.push(make_token(TokenType.BANG));
+                }
+                break;
+            case ">":
+                if (peek(1) === "=") {
+                    output.push(make_token(TokenType.GREATER_EQ));
+                    advance();
+                } else {
+                    output.push(make_token(TokenType.GREATER));
+                }
+                break;
+            case "<":
+                if (peek(1) === "=") {
+                    output.push(make_token(TokenType.LESS_EQ));
+                    advance();
+                } else {
+                    output.push(make_token(TokenType.LESS));
                 }
                 break;
             default:
@@ -355,6 +383,6 @@ export function scan(input: string): ScannerResult {
                 }
                 break;
         }
-        consume();
+        advance();
     }
 }
