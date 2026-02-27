@@ -1,17 +1,18 @@
 // import { Value } from "../lib/types";
-import { List, list, append as append_list, head } from "../lib/list";
 import { Error } from "./error";
+import { ch_lookup, ch_empty, ChainingHashtable, ch_insert } from "../lib/hashtables";
 
 export enum TokenType {
-    PLUS,
-    MINUS,
-    TIMES,
-    DIVIDE,
-    NUMBER_LIT,
-    RIGHT_PAREN,
-    LEFT_PAREN,
-    EOF,
+    COMMA, PLUS, MINUS, TIMES, POW, DIVIDE,
+    BANG, BANG_EQ, EQUAL, DOUBLE_EQUAL, GREATER, GREATER_EQ, LESS, LESS_EQ,
+    RIGHT_PAREN, LEFT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+    SEMICOLON, EOF,
+    AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, TRUE, FALSE, NULL, BREAK, CONTINUE,
+
+    // Tokens that take a literal value
+    NUMBER_LIT, STRING_LIT, IDENTIFIER, 
 }
+
 
 type ParseError = {
     message: string,
@@ -26,7 +27,6 @@ export type Token = {
 
 type Literal = number | string;
 
-// TODO: Change to arrays
 type ScannerResult = Array<Token> | Array<Error>;
 
 // A string with length 1
@@ -91,6 +91,27 @@ function is_digit(str: Character | null): boolean {
     return !isNaN(n) && n >= 0 && n <= 9;
 }
 
+/**
+ * Checks if a character is an english letter
+ * @param ch The character to check
+ * @returns True if the character is a letter, false otherwise
+ */
+function is_letter(str: Character | null): boolean {
+    if (str === null) {
+        return false;
+    }
+    const matches = str.match("[a-zA-Z]");
+    return (matches !== null && matches.length > 0);
+}
+
+
+/**
+ * Makes a token of the specified type, value and index
+ * @param index The index where the token is found
+ * @param type The type of the token
+ * @param value Optional, a literal value for tokens that utilize them
+ * @returns A new Token with the specified values
+ */
 export function token(index: number, type: TokenType, value?: Literal) {
     return {
         type,
@@ -105,14 +126,19 @@ export function token(index: number, type: TokenType, value?: Literal) {
  * @returns A List of Tokens if the scan is successful. If any parsing errors occur, instead returns a List of Errors
  */
 export function scan(input: string): ScannerResult {
-    // Emits a parse error
-    function error(message: string) {
+    // Emits a parse error pointing at a specified index
+    function error_at(message: string, index: number) {
         scanner.errored = true;
         const error: ParseError = {
             message: message,
-            index: scanner.index,
+            index: index,
         };
         errors.push(error);
+    }
+
+    // Emits a parse error at the scanner's current index
+    function error(message: string) {
+        error_at(message, scanner.index);
     }
 
     function make_token(type: TokenType, value?: Literal) {
@@ -136,13 +162,6 @@ export function scan(input: string): ScannerResult {
         scanner.index += 1;
         return value;
     }
-
-    // // Gets the entire line that's currently being scanned
-    // function current_line(): string {
-    //     // Safety: We only increment line_number when finding a \n, 
-    //     // so splitting by \n then indexing by line_number will always be defined
-    //     return scanner.input.split("\n")[scanner.line_number]!;
-    // }
 
     // Scan a floating point number, emitting an error on faulty syntax
     function scan_number(): Token | null {
@@ -170,10 +189,67 @@ export function scan(input: string): ScannerResult {
         );
     }
 
+    // Scan a string literal, emitting an error on faulty syntax
+    function scan_string(): Token | null {
+        const start = scanner.index;
+        if (peek() !==  '"') {
+            return null;
+        }
+        consume();
+        while(true) {
+            if (peek() === "\0") {
+                error_at("String literal was never closed.", start);
+                return null;
+            } else if (peek() === '"') {
+                consume();
+                break;
+            }
+            consume();
+        }
+
+        return token(
+            start,
+            TokenType.STRING_LIT, 
+            scanner.input.substring(start + 1, scanner.index - 1) // Don't include the quotation marks
+        );
+    }
+
+    // Scan an identifier
+    function scan_identifier(): Token {
+        const start = scanner.index;
+        while(is_letter(peek()) || is_digit(peek())) {
+            consume();
+        }
+
+        return token(
+            start,
+            TokenType.IDENTIFIER,
+            scanner.input.substring(start, scanner.index)
+        );
+    }
+
+
     let scanner = scanner_init(input);
     let output: Array<Token> = [];
     let errors: Array<Error> = [];
     let skip_line = false;
+
+    const keywords: ChainingHashtable<string, TokenType> = ch_empty(14, (word) => word.charCodeAt(0));
+    ch_insert(keywords, "and", TokenType.AND);
+    ch_insert(keywords, "or", TokenType.OR);
+    ch_insert(keywords, "if", TokenType.IF);
+    ch_insert(keywords, "else", TokenType.ELSE);
+    ch_insert(keywords, "loop", TokenType.LOOP);
+    ch_insert(keywords, "while", TokenType.WHILE);
+    ch_insert(keywords, "fn", TokenType.FN);
+    ch_insert(keywords, "var", TokenType.VAR);
+    ch_insert(keywords, "return", TokenType.RETURN);
+    ch_insert(keywords, "true", TokenType.TRUE);
+    ch_insert(keywords, "false", TokenType.FALSE);
+    ch_insert(keywords, "null", TokenType.NULL);
+    ch_insert(keywords, "break", TokenType.BREAK);
+    ch_insert(keywords, "continue", TokenType.CONTINUE);
+
 
     while(true) {
         const ch = peek();
@@ -201,6 +277,9 @@ export function scan(input: string): ScannerResult {
                 } else {
                     return errors;
                 }
+            case ",":
+                output.push(make_token(TokenType.COMMA));
+                break;
             case "+":
                 output.push(make_token(TokenType.PLUS));
                 break;
@@ -221,6 +300,37 @@ export function scan(input: string): ScannerResult {
             case ")":
                 output.push(make_token(TokenType.RIGHT_PAREN));
                 break;
+            case ";":
+                output.push(make_token(TokenType.SEMICOLON));
+                break;
+            case ":":
+                if(peek(1) === ":") {
+                    skip_line = true;
+                } else {
+                    error("A ':' must be followed by a second ':'. Instead got '" + ch + "'");
+                }
+                break;
+            case "{":
+                output.push(make_token(TokenType.LEFT_BRACE));
+                break;
+            case "}":
+                output.push(make_token(TokenType.RIGHT_BRACE));
+                break;
+            case '"':
+                const s = scan_string();
+                if (s !== null) {
+                    output.push(s);
+                }
+                continue;
+            case "=":
+                if (peek(1) === "=") {
+                    output.push(make_token(TokenType.DOUBLE_EQUAL));
+                    consume();
+                } else {
+                    output.push(make_token(TokenType.EQUAL));
+                    break;
+                }
+                break;
             default:
                 if (is_whitespace(ch)) { 
                     break;
@@ -230,7 +340,16 @@ export function scan(input: string): ScannerResult {
                         output.push(n);
                     }
                     continue; // The number scanning already advances to the right position
-                } else {
+                } else if (is_letter(ch)) {
+                    const ident = scan_identifier();
+                    const keyword = ch_lookup(keywords, ident.value as string); // Safety: scan_identifier always returns a token with a string in the value field
+                    output.push(
+                        keyword !== undefined 
+                            ? token(ident.index, keyword) 
+                            : ident
+                    );
+                    continue;
+                }else {
                     error("Unrecognized character '" + ch + "'");
                     skip_line = true;
                 }
