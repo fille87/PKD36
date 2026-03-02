@@ -34,12 +34,12 @@ An infinite loop can be declared with the loop keyword
 While conditions don't require parentheses  
 Loops and breaks/continues can be labeled with the syntax:
 ```
-loop; name {
+loop: name {
     break name;
 }
 ```
 ```
-while x == 2; name {
+while x == 2: name {
     break name;
 }
 ```
