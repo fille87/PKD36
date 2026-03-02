@@ -1,6 +1,6 @@
 import { is_null, List, list, accumulate } from "../lib/list";
 import { Parser, parse } from "../src/parser";
-import {scan, has_errors} from "../src/scanner"
+import { scan } from "../src/scanner"
 import {TokenType, Expression, Token, Binary, ExpressionStatement, Variable, VariableDec, FunctionDec, While, Literal} from "../lib/types";
 
 // function list_to_arr<T>(lst: List<T>): T[]{

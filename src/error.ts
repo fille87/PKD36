@@ -31,12 +31,19 @@ export function make_error(kind: ErrorKind, message: string, index: number): Err
  * @param result The array to check
  * @returns True if there are any errors, false otherwise
  */
-export function has_errors<T>(result: Array<T> | Array<Error>): result is Array<Error> {
-    if(result.length === 0) {
+export function has_errors<T>(ts: Array<T> | Array<Error>): ts is Array<Error> {
+    if(ts.length === 0) {
         return false;
     }
-    const first = result[0];
-    return (first as Error).message !== undefined;
+    const first = ts[0];
+    return is_error(first);
+}
+
+export function is_error<T>(x: T | Error): x is Error {
+    const e = x as Error;
+    return e.kind != undefined 
+        && e.message != undefined 
+        && e.index != undefined;
 }
 
 
