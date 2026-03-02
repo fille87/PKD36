@@ -9,28 +9,15 @@ import {
     Block,
 } from"../lib/types";
 import {
-    Error as LangError
+    Error,
+    ErrorKind,
+    make_error as new_error
 } from "./error";
 
-export type ErrorKind =
-    | "Syntax"
-    | "UnexpectedToken"
-    | "InvalidAssignment"
-    | "MissingToken";
-
-export interface Error {
-    kind: ErrorKind;
-    message: string;
-    index: number;
-}
-
 class ParseError extends globalThis.Error {}
+
 function make_error(kind: ErrorKind, token: Token, message: string): Error {
-    return {
-        kind,
-        message,
-        index: token.index,
-    };
+    return new_error(kind, message, token.index);
 }
 
 export type Parser = {
@@ -81,7 +68,7 @@ export function parse(tokens: Token[]): Parser {
         if(check(token_type)){
             return advance();
         }
-        error("MissingToken", peek(), message);
+        error(ErrorKind.MissingToken, peek(), message);
         throw new ParseError();
     }
 
@@ -121,7 +108,7 @@ export function parse(tokens: Token[]): Parser {
             const body:Block = parse_block() as Block;
             return make_while(condition, body, name, index)
         } else {
-            throw error("MissingToken", peek(), "Expected block after while")
+            throw error(ErrorKind.MissingToken, peek(), "Expected block after while")
         }
     }
 
@@ -138,7 +125,7 @@ export function parse(tokens: Token[]): Parser {
             const body: Block = parse_block() as Block;
             return make_while(condition, body, name, index)
         } else {
-            throw error("MissingToken", peek(), "Expected block after while")
+            throw error(ErrorKind.MissingToken, peek(), "Expected block after while")
         }
     }
 
@@ -191,7 +178,7 @@ export function parse(tokens: Token[]): Parser {
             return make_fn(name, parameters, body, index);
         }
 
-        throw error("MissingToken",peek(), "Expected body after function head")
+        throw error(ErrorKind.MissingToken,peek(), "Expected body after function head")
     }
 
     function parse_return(): Statement{
@@ -240,7 +227,7 @@ export function parse(tokens: Token[]): Parser {
             if(expr.type === "Variable") {
                 expr = make_assignment(expr.name, value, expr.index);
             }
-            error("InvalidAssignment",target_token, "Invalid assignment target.");
+            error(ErrorKind.InvalidAssignment,target_token, "Invalid assignment target.");
         }
         return expr;
     }
@@ -356,7 +343,7 @@ export function parse(tokens: Token[]): Parser {
             consume(TokenType.RIGHT_PAREN, 'Expected ")" after expressionn, got:"' + get_sign(peek()) + '"')
             return expr;
         }
-        error("UnexpectedToken", peek(), "Expected an expression.");
+        error(ErrorKind.UnexpectedToken, peek(), "Expected an expression.");
         throw new ParseError();
     }
 

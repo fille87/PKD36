@@ -1,12 +1,29 @@
-export interface Error {
+export type Error = {
+    kind: ErrorKind,
     message: string,
     index: number,
+}
+
+export enum ErrorKind {
+    ParseError,
+    SyntaxError,
+    UnexpectedToken,
+    InvalidAssignment,
+    MissingToken
 }
 
 type Line = {
     source: string,
     line_number: number,
     start_index: number,
+}
+
+export function make_error(kind: ErrorKind, message: string, index: number): Error {
+    return { 
+        kind, 
+        message, 
+        index 
+    }
 }
 
 export function init(source: string): (es: Array<Error>) => void {

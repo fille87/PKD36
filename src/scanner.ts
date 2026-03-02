@@ -1,22 +1,15 @@
-// import { Value } from "../lib/types";
-import { Error } from "./error";
+import { Error, ErrorKind } from "./error";
 import { ch_lookup, ch_empty, ChainingHashtable, ch_insert } from "../lib/hashtables";
 
 export enum TokenType {
     COMMA, PLUS, MINUS, TIMES, POW, DIVIDE,
     BANG, BANG_EQ, EQUAL, DOUBLE_EQUAL, GREATER, GREATER_EQ, LESS, LESS_EQ,
     RIGHT_PAREN, LEFT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-    SEMICOLON, EOF,
+    SEMICOLON, COLON, EOF,
     AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, TRUE, FALSE, NULL, BREAK, CONTINUE,
 
     // Tokens that take a literal value
     NUMBER_LIT, STRING_LIT, IDENTIFIER, 
-}
-
-
-type ParseError = {
-    message: string,
-    index: number,
 }
 
 export type Token = {
@@ -129,7 +122,8 @@ export function scan(input: string): ScannerResult {
     // Emits a parse error pointing at a specified index
     function error_at(message: string, index: number) {
         scanner.errored = true;
-        const error: ParseError = {
+        const error: Error = {
+            kind: ErrorKind.ParseError,
             message: message,
             index: index,
         };
@@ -312,7 +306,7 @@ export function scan(input: string): ScannerResult {
                 if(peek(1) === ":") {
                     skip_line = true;
                 } else {
-                    error("A ':' must be followed by a second ':'. Instead got '" + ch + "'");
+                    output.push(make_token(TokenType.COLON));
                 }
                 break;
             case "{":
