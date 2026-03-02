@@ -26,6 +26,20 @@ export function make_error(kind: ErrorKind, message: string, index: number): Err
     }
 }
 
+/**
+ * Checks if an array is an array of Errors
+ * @param result The array to check
+ * @returns True if there are any errors, false otherwise
+ */
+export function has_errors<T>(result: Array<T> | Array<Error>): result is Array<Error> {
+    if(result.length === 0) {
+        return false;
+    }
+    const first = result[0];
+    return (first as Error).message !== undefined;
+}
+
+
 export function init(source: string): (es: Array<Error>) => void {
     function get_line(index: number): Line | undefined {
         const lines = source.split("\n");

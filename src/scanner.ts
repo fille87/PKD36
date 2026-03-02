@@ -49,20 +49,6 @@ function scanner_init(input: string): Scanner {
 }
 
 /**
- * TEMPORARY
- * Checks if the result of a scan has errors
- * @param result The scan results
- * @returns True if there are any errors, false otherwise
- */
-export function has_errors(result: ScannerResult): result is Array<Error> {
-    if(result.length === 0) {
-        return false;
-    }
-    const first = result[0];
-    return (first as Error).message !== undefined;
-}
-
-/**
  * Checks if a character is a whitespace character
  * @param ch The character to check
  * @returns True if the character is whitespace, false otherwise

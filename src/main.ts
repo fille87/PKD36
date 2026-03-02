@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
-import { init as error_display_init } from "./error";
-import { scan, has_errors } from "./scanner";
+import { init as error_display_init, has_errors } from "./error";
+import { scan } from "./scanner";
 import { resolve, basename } from "path";
 import { exit } from "process";
 

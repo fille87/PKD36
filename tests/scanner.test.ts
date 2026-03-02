@@ -1,4 +1,5 @@
-import { TokenType, scan, has_errors, token } from "../src/scanner";
+import { TokenType, scan, token } from "../src/scanner";
+import { has_errors } from "../src/error";
 
 test("Scan a single digit", () => {
     const s = "1";
@@ -189,10 +190,10 @@ test("If/else and equality comparison", () => {
 })
 
 test("Labeled loop", () => {
-    const s = "loop; name { break name; }";
+    const s = "loop: name { break name; }";
     const expected = [
         token(0, TokenType.LOOP), 
-        token(4, TokenType.SEMICOLON), 
+        token(4, TokenType.COLON), 
         token(6, TokenType.IDENTIFIER, "name"), 
         token(11, TokenType.LEFT_BRACE), 
         token(13, TokenType.BREAK), 
