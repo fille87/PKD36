@@ -41,6 +41,7 @@ if (has_errors(parsed)){
     exit(1);
 }
 
+
 try {
     interpret_results(parsed);
 } catch (e) {

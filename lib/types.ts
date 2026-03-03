@@ -75,7 +75,7 @@ export type FunctionBinding = {
 export type Operation = Unary | Binary;
 
 
-export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call;
+export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While;
 
 export type Declaration = VariableDec | FunctionDec
@@ -156,7 +156,7 @@ export type Variable = {
 export type Block = {
     type: "Block",
     index: number,
-    body: Statement[]
+    body: Expression[]
 }
 export type Print = {
     type: "Print",

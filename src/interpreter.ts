@@ -23,9 +23,11 @@ import {
 
 import {
     UntypescriptError,
-    ErrorKind
+    ErrorKind,
+    is_error
 } from "./error";
-import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert, ph_lookup, ProbingHashtable } from "../lib/hashtables";
+import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
+import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, display_stack } from "../lib/stack";
 
 // let hadRuntimeError: boolean = false;
 
@@ -39,31 +41,35 @@ import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert,
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
 const GLOBALS: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
-const frames: Array<Frame> = [ GLOBALS ];
+let frames: Stack<Frame> = push(GLOBALS, empty_stack());
 
-export function interpret_results(res: Array<Statement>) {
+export function interpret_results(res: Array<Expression>) {
     for (let i = 0; i < res.length; i += 1) {
         interpret(res[i]);
     }
 }
 
 // Runs the interpreter
-export function interpret(expr: Statement): Value | null { 
+export function interpret(expr: Expression): Value | null { 
     switch (expr.type) {
         case "Return":
-            return evaluate(expr.expression);
+            return interpret(expr.expression);
         case "Print":
-            console.log(evaluate(expr.expression));
+            console.log(interpret(expr.expression));
             return null;
         case "Expression_statement":
-            return evaluate(expr.expression);
-        // TODO
-        case "While":
+            interpret(expr.expression);
+            return null;
+        case "Assignment":
+            assign(expr);
+            return null;
         case "Variable_declaration":
             declare(expr as Declaration);
+        // TODO
         case "Function_declaration":
+        case "While":
         default:
-            return null;
+            return evaluate(expr);
     }
 }
 
@@ -81,8 +87,8 @@ function evaluate(expr: Expression): Value {
         case "Block":
             return block(expr);
         case "Variable":
-            if (var_lookup(expr.name) !== undefined) {
-                return evaluate(var_lookup(expr.name)!);
+            if (var_lookup(expr) !== undefined) {
+                return interpret(var_lookup(expr)!);
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, "'" + expr.name + "' is not defined", expr.index);
     }
@@ -237,15 +243,30 @@ function block(block: Block): Value | null {
     return return_value;
 }
 
-function var_lookup(name: string): Expression | undefined {
-    let frame_index = frames.length - 1;
-    let frame = frames[frame_index];
-    let res = ph_lookup(frame, name);
-    while (res === undefined) {
-        if (frame_index === 0) {
-            return undefined;
+function var_lookup(expr: {name: string, index: number}): Expression {
+    const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
+    if (is_empty(frames)) {
+        throw error;
+    }
+    let temp_stack = empty_stack<Frame>();
+    let res: Binding | undefined;
+    let frame: Frame;
+    while(!is_empty(frames)) {
+        // Safety: We've made sure frames is not empty
+        frame = pop_frame()!;
+        temp_stack = push(frame, temp_stack);
+        res = ph_lookup(frame, expr.name);
+        if (res != undefined) {
+            while(!is_empty(temp_stack)) {
+                const temp = top(temp_stack);
+                temp_stack = pop(temp_stack);
+                push_frame(temp);
+            }
+            break;
         }
-        frame_index -= 1;
+    }
+    if (res === undefined) {
+        throw error;
     }
     switch (res.type) {
         case "Expression_Binding":
@@ -254,30 +275,72 @@ function var_lookup(name: string): Expression | undefined {
             //TODO
             // return res.expression;
         case "Uninitialized":
-            return undefined;
+            throw new UntypescriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
     }
 }
 
 function declare(expr: Declaration) {
     switch(expr.type) {
         case "Variable_declaration":
+            let frame = pop_frame();
+            if (frame === undefined) {
+                frame = empty_frame();
+            }
             let val: Uninitialized | ExpressionBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
                 : { type: "Expression_Binding", expression: expr.initialiser };
-            ph_insert(GLOBALS, expr.name, val);
+            ph_insert(frame, expr.name, val);
+            push_frame(frame);
         case "Function_declaration":
             // TODO
         break;
     }
 }
 
+function assign(expr: Assignment) {
+    if (var_lookup(expr) === undefined) {
+        throw new UntypescriptError(ErrorKind.RuntimeError, "Cannot assign to variable '" + expr.name + "' before it is declared", expr.index);
+    }
+    // We know there's at least one frame since we already found the variable
+    let frame = pop_frame()!;
+    const binding: ExpressionBinding = {
+        type: "Expression_Binding",
+        expression: expr.value,
+    };
+    ph_insert(frame, expr.name, binding);
+    push_frame(frame);
+}
+
+function pop_frame(): Frame | undefined {
+    if (is_empty(frames)) {
+        return undefined;
+    } 
+    const frame = top(frames);
+    frames = pop(frames);
+    return frame;
+}
+
+function push_frame(frame: Frame) {
+    frames = push(frame, frames);
+}
+
 function enter_frame() {
     const frame: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
-    frames.push(frame);
+    push_frame(frame);
 }
 
 function exit_frame() {
-    if (frames.length > 1) {
-        frames.pop();
+    if (is_empty(frames)) {
+        push_frame(empty_frame());
+        return;
     }
+    frames = pop(frames);
+
+    if (is_empty(frames)) {
+        push_frame(empty_frame());
+    }
+}
+
+function empty_frame(): Frame {
+    return ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
 }

@@ -22,7 +22,7 @@ import {
 
 export type Parser = {
     input: Token[],
-    output: Statement[],
+    output: Expression[],
     errors: UntypescriptError[],
     has_error: boolean,
     current: number,
@@ -30,7 +30,7 @@ export type Parser = {
 
 }
 
-export type ParserResult = Array<Statement> | Array<UntypescriptError>;
+export type ParserResult = Array<Expression> | Array<UntypescriptError>;
 
 export function parse_tokens(tokens: Array<Token>): ParserResult {
     const parser = parse(tokens);
@@ -74,7 +74,7 @@ export function parse(tokens: Token[]): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index);
+        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index - 1); // TODO: Added -1 since the index was pointing at the next token instead of the one with the issue, make sure this actually works consistently though
     }
 
     // comfirms type of token
@@ -90,17 +90,19 @@ export function parse(tokens: Token[]): Parser {
 
     //TODO: Iplement recursive descent parsing
 
-    function parse_statement(): Statement {
-        if(match(TokenType.PRINT)) return parse_print();
+    function parse_statement(): Expression {
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
-        if(match(TokenType.WHILE)) return parse_while();
-        if(match(TokenType.LOOP)) return parse_loop();
-        return parse_expr_stmt()
+        const expr = parse_expression()
+        if (peek().type === TokenType.SEMICOLON) {
+            advance();
+            return make_expression_statement(expr, expr.index);
+        }
+        return expr;
     }
 
-    function parse_while(): Statement {
+    function parse_while(): Expression {
         const condition: Expression = parse_expression();
         let name : string | null = null // Must be a 
         const index: number = peek().index;
@@ -116,7 +118,7 @@ export function parse(tokens: Token[]): Parser {
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
     }
 
-    function parse_loop(): Statement {
+    function parse_loop(): Expression {
         const index: number = peek().index;
         const condition: Expression = make_literal(true, index);
         let name : string | null = null
@@ -132,18 +134,22 @@ export function parse(tokens: Token[]): Parser {
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index);
     }
 
-    function parse_print(): Statement {
+    function parse_print(): Expression {
         const index: number = previous().index;
         const expr: Expression = parse_expression()
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the statement")
+        consume(TokenType.SEMICOLON, "Expected a ; at the end of print statement")
         return make_print(expr, index);
     }
 
-    function parse_expr_stmt(): Statement {
+    function parse_expr_stmt(): Expression {
         const index: number = peek().index;
         const expr: Expression = parse_expression();
+        if (peek().type === TokenType.SEMICOLON) {
+            advance();
+            return make_expression_statement(expr, index);
+        }
+        return expr;
         // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
-        return make_expr_stmt(expr, index);
     }
 
     function parse_var(): Statement {
@@ -151,12 +157,11 @@ export function parse(tokens: Token[]): Parser {
         const name: string = consume(
                         TokenType.IDENTIFIER,
                         "Expected identifier after var").value as string
-        
         let init: Expression | null = null;
         if(match(TokenType.EQUAL)){
             init = parse_expression();
         }
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the statement");
+        consume(TokenType.SEMICOLON, "Expected a ; at the end of variable declaration");
         return make_var(name, init, index);
     }
 
@@ -193,6 +198,9 @@ export function parse(tokens: Token[]): Parser {
     }
 
     function parse_expression(): Expression {
+        if(match(TokenType.WHILE)) return parse_while();
+        if(match(TokenType.LOOP)) return parse_loop();
+        if(match(TokenType.PRINT)) return parse_print();
         const expr: Expression = parse_if()
         return expr;
     }
@@ -213,7 +221,7 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_block(): Expression{
         if(match(TokenType.LEFT_BRACE)){
-            const body: Statement[] = []
+            const body: Expression[] = []
             while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
                 body.push(parse_statement());
             }
@@ -226,14 +234,11 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_assignment(): Expression {
         const target_token: Token = peek();
-        console.log("Target: " + target_token);
         let expr: Expression = parse_logic_or();
-        console.log("Expr: " + expr);
         if(match(TokenType.EQUAL)){
-            console.log("Found equal");
             const value: Expression = parse_expression();
-            console.log("Type is: " + expr.type);
             if(expr.type === "Variable") {
+                consume(TokenType.SEMICOLON, "Expected a ; at the end of variable assignment");
                 return make_assignment(expr.name, value, expr.index);
             }
             throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
@@ -422,7 +427,7 @@ function make_binary(operator: BinOperator, left: Expression,
     }
 }
 
-function make_print(expr: Expression, index: number): Statement {
+function make_print(expr: Expression, index: number): Expression {
     return {
         type: "Print",
         index,
@@ -440,7 +445,7 @@ function make_var(name:string, initialiser: Expression | null,
     }
 }
 
-function make_fn(name:string, params:string[], body: Block, index:number): Statement{
+function make_fn(name:string, params:string[], body: Block, index:number): Statement {
     return {
         type: "Function_declaration",
         index,
@@ -450,7 +455,7 @@ function make_fn(name:string, params:string[], body: Block, index:number): State
     }
 }
 
-function make_return(expression: Expression, index: number):Statement{
+function make_return(expression: Expression, index: number): Statement {
     return {
     type: "Return",
     index,
@@ -475,14 +480,15 @@ function make_assignment(name: string, value: Expression, index: number): Expres
     }
 }
 
-function make_block(body: Statement[], index: number): Expression {
+function make_block(body: Expression[], index: number): Expression {
     return {
     type: "Block",
     index,
     body
     }
 }
-function make_expr_stmt(expression:Expression, index: number): Statement{
+
+function make_expression_statement(expression:Expression, index: number): Expression {
     return {
         type: "Expression_statement",
         index,
@@ -509,7 +515,7 @@ function make_logic(right:Expression, operator: "or" | "and", left:Expression, i
     }
 }
 
-function make_while(condition: Expression, body: Block, name: string | null, index: number): Statement {
+function make_while(condition: Expression, body: Block, name: string | null, index: number): Expression {
     return {
         type: "While",
         index,
