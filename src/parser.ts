@@ -218,7 +218,8 @@ export function parse(tokens: Token[]): Parser {
                 body.push(parse_statement());
             }
             consume(TokenType.RIGHT_BRACE, "Expected } after block");
-            return make_block(body, previous().index)
+            const block = make_block(body, previous().index)
+            return block;
         }
         return parse_assignment();
     }
@@ -363,7 +364,7 @@ export function parse(tokens: Token[]): Parser {
                 case TokenType.IF:
                 case TokenType.WHILE:
                 case TokenType.RETURN:
-                // case TokenType.PRINT:
+                case TokenType.PRINT:
                     return;
             }
 

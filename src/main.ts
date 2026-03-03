@@ -33,7 +33,6 @@ if (has_errors(res)){
     exit(1);
 }
 
-console.log(res);
 const parsed = parse_tokens(res as Array<Token>);
 
 if (has_errors(parsed)){
@@ -46,10 +45,8 @@ try {
     interpret_results(parsed);
 } catch (e) {
     const error = e as UntypescriptError;
-    console.log(error.index);
     display_errors([error]);
     exit(1);
 }
 
-console.log(parsed);
 exit(0);

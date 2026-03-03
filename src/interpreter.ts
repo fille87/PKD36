@@ -4,7 +4,12 @@ import {
     UnaOperator,
     BinOperator,
     Statement,
-    get_sign
+    get_sign,
+    Block,
+    Assignment,
+    VariableDec,
+    Declaration,
+    FunctionDec
 } from"../lib/types";
 
 import {
@@ -16,6 +21,7 @@ import {
     UntypescriptError,
     ErrorKind
 } from "./error";
+import { ch_empty, ch_insert, ch_lookup, ChainingHashtable } from "../lib/hashtables";
 
 // let hadRuntimeError: boolean = false;
 
@@ -25,6 +31,8 @@ import {
 //     hadRuntimeError = true;
 //     throw new
 //   }
+//
+const GLOBALS: ChainingHashtable<string, Expression> = ch_empty(100, (str) => str.charCodeAt(0));
 
 export function interpret_results(res: Array<Statement>) {
     for (let i = 0; i < res.length; i += 1) {
@@ -45,6 +53,7 @@ export function interpret(expr: Statement): Value | null {
         // TODO
         case "While":
         case "Variable_declaration":
+            declare(expr as Declaration);
         case "Function_declaration":
         default:
             return null;
@@ -62,6 +71,13 @@ function evaluate(expr: Expression): Value {
             return unaryExpr(expr);
         case "Binary":
             return binaryExpr(expr);
+        case "Block":
+            return block(expr);
+        case "Variable":
+            if (var_lookup(expr.name) !== undefined) {
+                return evaluate(var_lookup(expr.name)!);
+            }
+            throw new UntypescriptError(ErrorKind.RuntimeError, "'" + expr.name + "' is not defined", expr.index);
     }
     return null; //seems neccesary but have to check
     //return expr.accept.this//Can't get this to work
@@ -202,4 +218,26 @@ function binaryExpr(expr: Binary) {
 
     // Unreachable.
     return null;
+}
+
+function block(block: Block): Value | null {
+    let return_value: Value | null = null;
+    for (let i = 0; i < block.body.length; i += 1) {
+        return_value = interpret(block.body[i]);
+    }
+    return return_value;
+}
+
+function var_lookup(name: string): Expression | undefined {
+    return ch_lookup(GLOBALS, name);
+}
+
+function declare(expr: Declaration) {
+    switch(expr.type) {
+        case "Variable_declaration":
+            ch_insert(GLOBALS, expr.name, expr.initialiser);
+        case "Function_declaration":
+            // TODO
+        break;
+    }
 }
