@@ -1,11 +1,15 @@
 import {
     Expression, Literal, Unary, Binary, Operation, Operator, Value,
-    TokenType, Token,
     Grouping,
     UnaOperator,
     BinOperator,
     get_sign
 } from"../lib/types";
+
+import {
+    Token,
+    TokenType
+} from "./scanner";
 
 import {
     UntypescriptError,
@@ -22,10 +26,10 @@ import {
 //   }
 
 // Runs the interpreter
-function interpret(expr: Expression) { 
+export function interpret(expr: Expression): Value { 
     // try {
   const value: Value = evaluate(expr);
-  console.log(stringify(value));
+  return value;
     // } catch (error) {
     //     if(error instanceof UntypescriptError) {
     //         runtimeError(error);
@@ -157,7 +161,7 @@ function binaryExpr(expr: Binary) {
             if (Object(left) instanceof String && Object(right) instanceof String) {
                 return String(left) + String(right);
             }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", expr.index); //Change to connect to error module
+            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", expr.index);
         case "/":
             checkNumberOperands(expr);
             return Number(left) / Number(right);

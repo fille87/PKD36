@@ -54,7 +54,7 @@ function scanner_init(input: string): Scanner {
  * @returns True if the character is whitespace, false otherwise
  */
 function is_whitespace(ch: Character): boolean {
-    return ch === " " || ch === "\t" || ch === "\r";
+    return ch === " " || ch === "\t" || ch === "\r" || ch === "\n";
 }
 
 /**

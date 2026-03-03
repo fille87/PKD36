@@ -59,7 +59,7 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
 
         for (let i = 0; i < lines.length; i += 1) {
             const line_end = line_start + lines[i].length;
-            if (line_start <= index && line_end >= index) {
+            if (line_start <= index && (line_end >= index || (index >= line_end && i === lines.length - 1))) {
                 return {
                     source: lines[i],
                     line_number: i,

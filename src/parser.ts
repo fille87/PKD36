@@ -161,11 +161,11 @@ export function parse(tokens: Token[]): Parser {
     }
 
     function parse_fn(): Statement{
+        const index: number = previous().index;
         const name: string = get_sign(consume(
                 TokenType.IDENTIFIER,
                 "Expected an identifier in head of function declaration")) as string
         const parameters: string[] = []
-        const index: number = peek().index;
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name");
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
@@ -199,8 +199,8 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_if(): Expression {
         if(match(TokenType.IF)){
-            const condition: Expression = parse_expression();
             const index: number = previous().index;
+            const condition: Expression = parse_expression();
             const if_then: Expression = parse_expression();
             let if_else: Expression | null = null
             if(match(TokenType.ELSE)){
@@ -258,9 +258,9 @@ export function parse(tokens: Token[]): Parser {
     function parse_equality(): Expression {
         const equal: Expression = parse_comparison();
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
+            const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression = parse_comparison()
-            const index: number = previous().index
             return make_binary(operator, equal, right, index);
         }
         return equal;
@@ -269,9 +269,9 @@ export function parse(tokens: Token[]): Parser {
         const comp: Expression = parse_term();
         while(match(TokenType.LESS, TokenType.LESS_EQ,
                     TokenType.GREATER, TokenType.GREATER_EQ)) {
+            const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression = parse_term()
-            const index: number = previous().index
 
             return make_binary(operator, comp, right, index);
         }
@@ -280,9 +280,9 @@ export function parse(tokens: Token[]): Parser {
     function parse_term(): Expression {
         const term: Expression = parse_factor();
         while(match(TokenType.PLUS, TokenType.MINUS)){
+            const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
             const right: Expression  = parse_factor();
-            const index: number = peek().index;
             return make_binary(operator, term, right, index);
         }
         return term;
@@ -290,18 +290,18 @@ export function parse(tokens: Token[]): Parser {
     function parse_factor(): Expression {
         const fact: Expression = parse_unary();
         while(match(TokenType.TIMES, TokenType.DIVIDE)){
+            const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression  = parse_unary();
-            const index: number = previous().index; 
             return make_binary(operator, fact, right, index)
         }
         return fact;
     }
     function parse_unary(): Expression {
         if(match(TokenType.MINUS, TokenType.BANG)){
+            const index: number = previous().index;
             const operator: UnaOperator = get_sign(previous()) as UnaOperator;
             const operand: Expression = parse_unary()
-            const index: number = previous().index;
             return make_unary(operator, operand, index)
         }
         return parse_call();
@@ -377,7 +377,7 @@ export function parse(tokens: Token[]): Parser {
             parser.output.push(statement);
         } catch (e) {
             // if (e instanceof UntypescriptError) {
-                parser.errors.push(e);
+                parser.errors.push(e as UntypescriptError);
                 synchronize();
             // } else {
             //     throw e; // real bug → crash

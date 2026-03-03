@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { init as error_display_init, has_errors } from "./error";
+import { init as error_display_init, has_errors, UntypescriptError } from "./error";
 import { scan, Token } from "./scanner";
 import { resolve, basename } from "path";
 import { exit } from "process";
@@ -50,8 +50,9 @@ for(let i = 0; i < parsed.length; i += 1) {
         }
     }
 } catch (e) {
-    console.log(e.index);
-    display_errors([e]);
+    const error = e as UntypescriptError;
+    console.log(error.index);
+    display_errors([error]);
     exit(1);
 }
 
