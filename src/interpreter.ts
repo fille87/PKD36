@@ -8,29 +8,31 @@ import {
 } from"../lib/types";
 
 import {
-    UntypescriptError
+    UntypescriptError,
+    ErrorKind
 } from "./error";
 
-let hadRuntimeError: boolean = false;
+// let hadRuntimeError: boolean = false;
 
-function runtimeError(RunError: string) {
-    console.log(RunError.getMessage() +
-        "\n[line " + RunError.token.line + "]");
-    hadRuntimeError = true;
-  }
+// function runtimeError(RunError: string) {
+//     // console.log(RunError.getMessage() +
+//     //     "\n[line " + RunError.token.line + "]");
+//     hadRuntimeError = true;
+//     throw new
+//   }
 
 // Runs the interpreter
 function interpret(expr: Expression) { 
-    try {
-      const value: Value = evaluate(expr);
-      console.log(stringify(value));
-    } catch (error) {
-        if(error instanceof UntypescriptError) {
-            runtimeError(error);
-        } else {
-            throw error;
-        }
-    }
+    // try {
+  const value: Value = evaluate(expr);
+  console.log(stringify(value));
+    // } catch (error) {
+    //     if(error instanceof UntypescriptError) {
+    //         runtimeError(error);
+    //     } else {
+    //         throw error;
+    //     }
+    // }
 }
 
 // Evaluates the given expression
@@ -76,13 +78,13 @@ function unaryExpr(expr: Unary) {
 // Checks if the operand is a number
 function checkNumberOperand(operator: string, operand: Value) {
     if (Object(operand) instanceof Number) return;
-    throw new RuntimeError(operator + " Operand must be a number."); //Change to connect to error module
+    throw new UntypescriptError(ErrorKind.RuntimeError, operator + " Operand must be a number.", 0); //Change to connect to error module
 }
 
 // Checks if the operands are numbers
 function checkNumberOperands(operator: string, left: Value, right: Value) {
     if (Object(left) instanceof Number && Object(right) instanceof Number) return;
-    throw new RuntimeError(operator + " Operands must be numbers."); //Change to connect to error module
+    throw new UntypescriptError(ErrorKind.RuntimeError, operator + " Operands must be numbers.", 0); //Change to connect to error module
 }
 
 // Returns true for all value type Value, except for "null" and "false"
@@ -155,7 +157,7 @@ function binaryExpr(expr: Binary) {
             if (Object(left) instanceof String && Object(right) instanceof String) {
                 return String(left) + String(right);
             }
-            throw new RuntimeError(expr.operator + " Operands must be two numbers or two strings."); //Change to connect to error module
+            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", 0); //Change to connect to error module
         case "/":
             checkNumberOperands(expr.operator, left, right);
             return Number(left) / Number(right);
