@@ -20,7 +20,8 @@ export enum ErrorKind {
     SyntaxError,
     UnexpectedToken,
     InvalidAssignment,
-    MissingToken
+    MissingToken,
+    RuntimeError,
 }
 
 type Line = {
@@ -39,16 +40,16 @@ export function has_errors<T>(ts: Array<T> | Array<UntypescriptError>): ts is Ar
         return false;
     }
     const first = ts[0];
-    // return is_error(first);
-    return first instanceof UntypescriptError;
+    return is_error(first);
+    // return first instanceof UntypescriptError;
 }
 
-// export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
-//     // const e = x ins UntypescriptError;
-//     // return e.kind != undefined 
-//     //     && e.message != undefined 
-//     //     && e.index != undefined;
-// }
+export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
+    const e = x as UntypescriptError;
+    return e.kind != undefined 
+        && e.message != undefined 
+        && e.index != undefined;
+}
 
 
 export function init(source: string): (es: Array<UntypescriptError>) => void {

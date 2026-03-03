@@ -1,6 +1,5 @@
 import {
     Expression, Literal, Unary, Binary, Operation, Operator, Value,
-    TokenType, Token,
     Grouping,
     UnaOperator,
     BinOperator,
@@ -9,8 +8,13 @@ import {
     Block,
 } from"../lib/types";
 import {
+    TokenType,
+    Token
+} from "./scanner"
+import {
     UntypescriptError,
     ErrorKind,
+    has_errors,
 } from "./error";
 
 //class ParseError extends globalThis.Error {}
@@ -24,6 +28,16 @@ export type Parser = {
     current: number,
     end: number
 
+}
+
+export type ParserResult = Array<Statement> | Array<UntypescriptError>;
+
+export function parse_tokens(tokens: Array<Token>): ParserResult {
+    const parser = parse(tokens);
+    if (has_errors(parser.errors)) {
+        return parser.errors;
+    }
+    return parser.output;
 }
 
 export function parse(tokens: Token[]): Parser {
@@ -77,7 +91,7 @@ export function parse(tokens: Token[]): Parser {
     //TODO: Iplement recursive descent parsing
 
     function parse_statement(): Statement {
-        if(match(TokenType.PRINT)) return parse_print();
+        // if(match(TokenType.PRINT)) return parse_print();
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
@@ -128,7 +142,7 @@ export function parse(tokens: Token[]): Parser {
     function parse_expr_stmt(): Statement {
         const index: number = peek().index;
         const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
+        // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
         return make_expr_stmt(expr, index);
     }
 
@@ -243,7 +257,7 @@ export function parse(tokens: Token[]): Parser {
     
     function parse_equality(): Expression {
         const equal: Expression = parse_comparison();
-        while(match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)){
+        while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression = parse_comparison()
             const index: number = previous().index
@@ -253,8 +267,8 @@ export function parse(tokens: Token[]): Parser {
     }
     function parse_comparison(): Expression {
         const comp: Expression = parse_term();
-        while(match(TokenType.LESS, TokenType.LESS_EQUAL,
-                    TokenType.GREATER, TokenType.GREATER_EQUAL)) {
+        while(match(TokenType.LESS, TokenType.LESS_EQ,
+                    TokenType.GREATER, TokenType.GREATER_EQ)) {
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression = parse_term()
             const index: number = previous().index
@@ -345,11 +359,11 @@ export function parse(tokens: Token[]): Parser {
             switch (peek().type) {
                 case TokenType.FN:
                 case TokenType.VAR:
-                case TokenType.FOR:
+                // case TokenType.FOR:
                 case TokenType.IF:
                 case TokenType.WHILE:
                 case TokenType.RETURN:
-                case TokenType.PRINT:
+                // case TokenType.PRINT:
                     return;
             }
 
@@ -362,12 +376,12 @@ export function parse(tokens: Token[]): Parser {
             const statement = parse_statement();
             parser.output.push(statement);
         } catch (e) {
-            if (e instanceof UntypescriptError) {
+            // if (e instanceof UntypescriptError) {
                 parser.errors.push(e);
                 synchronize();
-            } else {
-                throw e; // real bug → crash
-            }
+            // } else {
+            //     throw e; // real bug → crash
+            // }
         }
     }
     return parser;

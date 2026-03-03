@@ -1,8 +1,10 @@
 import { readFileSync } from "fs";
 import { init as error_display_init, has_errors } from "./error";
-import { scan } from "./scanner";
+import { scan, Token } from "./scanner";
 import { resolve, basename } from "path";
 import { exit } from "process";
+import { parse_tokens } from "./parser";
+import { interpret } from "./interpreter";
 
 const source_file = process.argv[2];
 if (source_file === undefined) {
@@ -32,4 +34,26 @@ if (has_errors(res)){
 }
 
 console.log(res);
+const parsed = parse_tokens(res as Array<Token>);
+
+if (has_errors(parsed)){
+    console.log("Could not parse source file '" + basename(path) + "'!\n");
+    display_errors(parsed);
+    exit(1);
+}
+
+try {
+for(let i = 0; i < parsed.length; i += 1) {
+        const statement = parsed[i];
+        if (statement.type == "Expression_statement") {
+            console.log(interpret(statement.expression));
+        }
+    }
+} catch (e) {
+    console.log(e.index);
+    display_errors([e]);
+    exit(1);
+}
+
+console.log(parsed);
 exit(0);

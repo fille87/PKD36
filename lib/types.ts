@@ -1,50 +1,51 @@
 import { ProbingHashtable } from "./hashtables";
 import {list, List} from "./list"
 import { NonEmptyStack } from "./stack";
+import { Token, TokenType } from "../src/scanner"
 
 export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">";
 export type UnaOperator = "-" | "!";
 export type Operator = BinOperator | UnaOperator;
 export type Value = number | string | boolean | null;
 
-//tokens:
-export enum TokenType {
-    PLUS,
-    MINUS,
-    TIMES,
-    DIVIDE,
-    SEMICOLON,
-    COLON,
-    COMMA,
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-
-    //Literals
-    NUMBER_LIT,
-    STRING_LIT,
-    IDENTIFIER,
-
-    // One or two character tokens.
-    BANG, BANG_EQUAL,
-    EQUAL, EQUAL_EQUAL,
-    GREATER, GREATER_EQUAL,
-    LESS, LESS_EQUAL,
-
-    // Keywords.
-    AND, ELSE, FALSE, FN, FOR, IF, NULL, OR,
-    PRINT, RETURN, THIS, TRUE, VAR, WHILE, LOOP,
-
-    EOF,
-}
-
-
-export type Token = {
-    type: TokenType,
-    index: number,
-    value: Value | undefined, // Value | null
-}
+// //tokens:
+// export enum TokenType {
+//     PLUS,
+//     MINUS,
+//     TIMES,
+//     DIVIDE,
+//     SEMICOLON,
+//     COLON,
+//     COMMA,
+//     LEFT_PAREN,
+//     RIGHT_PAREN,
+//     LEFT_BRACE,
+//     RIGHT_BRACE,
+//
+//     //Literals
+//     NUMBER_LIT,
+//     STRING_LIT,
+//     IDENTIFIER,
+//
+//     // One or two character tokens.
+//     BANG, BANG_EQUAL,
+//     EQUAL, EQUAL_EQUAL,
+//     GREATER, GREATER_EQUAL,
+//     LESS, LESS_EQUAL,
+//
+//     // Keywords.
+//     AND, ELSE, FALSE, FN, FOR, IF, NULL, OR,
+//     PRINT, RETURN, THIS, TRUE, VAR, WHILE, LOOP,
+//
+//     EOF,
+// }
+//
+//
+// export type Token = {
+//     type: TokenType,
+//     index: number,
+//     value: Value | undefined, // Value | null
+// }
 
 
 
@@ -206,26 +207,26 @@ export function get_sign(token: Token): Value {
 
         // One or two character tokens
         case TokenType.BANG: return "!";
-        case TokenType.BANG_EQUAL: return "!=";
+        case TokenType.BANG_EQ: return "!=";
         case TokenType.EQUAL: return "=";
-        case TokenType.EQUAL_EQUAL: return "==";
+        case TokenType.DOUBLE_EQUAL: return "==";
         case TokenType.GREATER: return ">";
-        case TokenType.GREATER_EQUAL: return ">=";
+        case TokenType.GREATER_EQ: return ">=";
         case TokenType.LESS: return "<";
-        case TokenType.LESS_EQUAL: return "<=";
+        case TokenType.LESS_EQ: return "<=";
 
         // Keywords
         case TokenType.AND: return "and";
         case TokenType.ELSE: return "else";
         case TokenType.FALSE: return "false";
         case TokenType.FN: return "fn";
-        case TokenType.FOR: return "for";
+        // case TokenType.FOR: return "for";
         case TokenType.IF: return "if";
         case TokenType.NULL: return "null";
         case TokenType.OR: return "or";
-        case TokenType.PRINT: return "print";
+        // case TokenType.PRINT: return "print";
         case TokenType.RETURN: return "return";
-        case TokenType.THIS: return "this";
+        // case TokenType.THIS: return "this";
         case TokenType.TRUE: return "true";
         case TokenType.VAR: return "var";
         case TokenType.WHILE: return "while";
