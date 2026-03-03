@@ -1,7 +1,18 @@
-export type Error = {
-    kind: ErrorKind,
-    message: string,
-    index: number,
+// export type UntypescriptError = {
+//     kind: ErrorKind,
+//     message: string,
+//     index: number,
+// }
+
+export class UntypescriptError extends Error {
+    kind: ErrorKind;
+    index: number;
+
+    constructor(kind: ErrorKind, message: string, index: number) {
+        super(message);
+        this.kind = kind;
+        this.index = index;
+    }
 }
 
 export enum ErrorKind {
@@ -18,36 +29,29 @@ type Line = {
     start_index: number,
 }
 
-export function make_error(kind: ErrorKind, message: string, index: number): Error {
-    return { 
-        kind, 
-        message, 
-        index 
-    }
-}
-
 /**
  * Checks if an array is an array of Errors
  * @param result The array to check
  * @returns True if there are any errors, false otherwise
  */
-export function has_errors<T>(ts: Array<T> | Array<Error>): ts is Array<Error> {
+export function has_errors<T>(ts: Array<T> | Array<UntypescriptError>): ts is Array<UntypescriptError> {
     if(ts.length === 0) {
         return false;
     }
     const first = ts[0];
-    return is_error(first);
+    // return is_error(first);
+    return first instanceof UntypescriptError;
 }
 
-export function is_error<T>(x: T | Error): x is Error {
-    const e = x as Error;
-    return e.kind != undefined 
-        && e.message != undefined 
-        && e.index != undefined;
-}
+// export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
+//     // const e = x ins UntypescriptError;
+//     // return e.kind != undefined 
+//     //     && e.message != undefined 
+//     //     && e.index != undefined;
+// }
 
 
-export function init(source: string): (es: Array<Error>) => void {
+export function init(source: string): (es: Array<UntypescriptError>) => void {
     function get_line(index: number): Line | undefined {
         const lines = source.split("\n");
         let line_start = 0;
@@ -70,13 +74,13 @@ export function init(source: string): (es: Array<Error>) => void {
         return "".padStart(position, " ") + "^ Here";
     }
 
-    function display_errors(es: Array<Error>) {
+    function display_errors(es: Array<UntypescriptError>) {
         for (let i = 0; i < es.length; i += 1) {
             display_error(es[i]);
         }
     }
 
-    function display_error(e: Error) {
+    function display_error(e: UntypescriptError) {
         const line = get_line(e.index);
         if (line === undefined) {
             console.log("Error: " + e.message);
@@ -94,5 +98,5 @@ export function init(source: string): (es: Array<Error>) => void {
     }
 
 
-    return (es: Array<Error>) => display_errors(es);
+    return (es: Array<UntypescriptError>) => display_errors(es);
 }

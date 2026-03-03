@@ -1,4 +1,4 @@
-import { Error, ErrorKind } from "./error";
+import { UntypescriptError, ErrorKind } from "./error";
 import { ch_lookup, ch_empty, ChainingHashtable, ch_insert } from "../lib/hashtables";
 
 export enum TokenType {
@@ -20,7 +20,7 @@ export type Token = {
 
 type Literal = number | string;
 
-type ScannerResult = Array<Token> | Array<Error>;
+type ScannerResult = Array<Token> | Array<UntypescriptError>;
 
 // A string with length 1
 type Character = string; 
@@ -108,11 +108,12 @@ export function scan(input: string): ScannerResult {
     // Emits a parse error pointing at a specified index
     function error_at(message: string, index: number) {
         scanner.errored = true;
-        const error: Error = {
-            kind: ErrorKind.ParseError,
-            message: message,
-            index: index,
-        };
+        // const error: Error = {
+        //     kind: ErrorKind.ParseError,
+        //     message: message,
+        //     index: index,
+        // };
+        const error = new UntypescriptError(ErrorKind.ParseError, message, index);
         errors.push(error);
     }
 
@@ -211,7 +212,7 @@ export function scan(input: string): ScannerResult {
 
     let scanner = scanner_init(input);
     let output: Array<Token> = [];
-    let errors: Array<Error> = [];
+    let errors: Array<UntypescriptError> = [];
     let skip_line = false;
 
     const keywords: ChainingHashtable<string, TokenType> = ch_empty(14, (word) => word.charCodeAt(0));
