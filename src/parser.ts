@@ -9,21 +9,17 @@ import {
     Block,
 } from"../lib/types";
 import {
-    Error,
+    UntypescriptError,
     ErrorKind,
-    make_error as new_error
 } from "./error";
 
-class ParseError extends globalThis.Error {}
+//class ParseError extends globalThis.Error {}
 
-function make_error(kind: ErrorKind, token: Token, message: string): Error {
-    return new_error(kind, message, token.index);
-}
 
 export type Parser = {
     input: Token[],
     output: Statement[],
-    errors: Error[],
+    errors: UntypescriptError[],
     has_error: boolean,
     current: number,
     end: number
@@ -38,10 +34,6 @@ export function parse(tokens: Token[]): Parser {
         has_error: false,
         current: 0,
         end: tokens.length - 1
-    }
-    function error(kind: ErrorKind, token:Token, message:string): void {
-        parser.has_error = true;
-        parser.errors.push(make_error(kind, token, message))
     }
     function at_end(): boolean{
         return peek().type === TokenType.EOF;
@@ -68,8 +60,7 @@ export function parse(tokens: Token[]): Parser {
         if(check(token_type)){
             return advance();
         }
-        error(ErrorKind.MissingToken, peek(), message);
-        throw new ParseError();
+        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index);
     }
 
     // comfirms type of token
@@ -107,9 +98,8 @@ export function parse(tokens: Token[]): Parser {
         if(check(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
             return make_while(condition, body, name, index)
-        } else {
-            throw error(ErrorKind.MissingToken, peek(), "Expected block after while")
         }
+        throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
     }
 
     function parse_loop(): Statement {
@@ -124,9 +114,8 @@ export function parse(tokens: Token[]): Parser {
         if(check(TokenType.LEFT_BRACE)){
             const body: Block = parse_block() as Block;
             return make_while(condition, body, name, index)
-        } else {
-            throw error(ErrorKind.MissingToken, peek(), "Expected block after while")
         }
+        throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index);
     }
 
     function parse_print(): Statement {
@@ -178,7 +167,8 @@ export function parse(tokens: Token[]): Parser {
             return make_fn(name, parameters, body, index);
         }
 
-        throw error(ErrorKind.MissingToken,peek(), "Expected body after function head")
+        throw new UntypescriptError(
+            ErrorKind.MissingToken, "Expected body after function head", peek().index,)
     }
 
     function parse_return(): Statement{
@@ -227,7 +217,7 @@ export function parse(tokens: Token[]): Parser {
             if(expr.type === "Variable") {
                 expr = make_assignment(expr.name, value, expr.index);
             }
-            error(ErrorKind.InvalidAssignment,target_token, "Invalid assignment target.");
+            throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
         }
         return expr;
     }
@@ -343,8 +333,7 @@ export function parse(tokens: Token[]): Parser {
             consume(TokenType.RIGHT_PAREN, 'Expected ")" after expressionn, got:"' + get_sign(peek()) + '"')
             return expr;
         }
-        error(ErrorKind.UnexpectedToken, peek(), "Expected an expression.");
-        throw new ParseError();
+        throw new UntypescriptError(ErrorKind.UnexpectedToken, "Expected an expression.", peek().index);
     }
 
     function synchronize(): void {
@@ -373,7 +362,8 @@ export function parse(tokens: Token[]): Parser {
             const statement = parse_statement();
             parser.output.push(statement);
         } catch (e) {
-            if (e instanceof ParseError) {
+            if (e instanceof UntypescriptError) {
+                parser.errors.push(e);
                 synchronize();
             } else {
                 throw e; // real bug → crash

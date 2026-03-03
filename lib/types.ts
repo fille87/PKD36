@@ -1,4 +1,6 @@
+import { ProbingHashtable } from "./hashtables";
 import {list, List} from "./list"
+import { NonEmptyStack } from "./stack";
 
 export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">";
 export type UnaOperator = "-" | "!";
@@ -37,16 +39,7 @@ export enum TokenType {
     EOF,
 }
 
-/*export type Token = ValueToken | TokenType
-export type SignToken = {
-    type: TokenType,
-    sign: string 
-}
-export type ValueToken = {
-    type: TokenType,
-    value: Value, // Value | null
-}
-*/
+
 export type Token = {
     type: TokenType,
     index: number,
@@ -54,6 +47,22 @@ export type Token = {
 }
 
 
+
+
+export type Frame = ProbingHashtable<string, Binding>;
+export type Environment = NonEmptyStack<Frame>;
+export type Binding = VariableBinding | FunctionBinding
+
+export type VariableBinding = {
+    type: "Variable_Binding",
+    value: Value,
+}
+
+export type FunctionBinding = {
+    type: "Funtion_Binding",
+    args: Variable[],
+    body: Block,
+}
 
 
 //AST:
