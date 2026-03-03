@@ -4,7 +4,7 @@ import { scan, Token } from "./scanner";
 import { resolve, basename } from "path";
 import { exit } from "process";
 import { parse_tokens } from "./parser";
-import { interpret } from "./interpreter";
+import { interpret, interpret_results } from "./interpreter";
 
 const source_file = process.argv[2];
 if (source_file === undefined) {
@@ -43,12 +43,7 @@ if (has_errors(parsed)){
 }
 
 try {
-for(let i = 0; i < parsed.length; i += 1) {
-        const statement = parsed[i];
-        if (statement.type == "Expression_statement") {
-            console.log(interpret(statement.expression));
-        }
-    }
+    interpret_results(parsed);
 } catch (e) {
     const error = e as UntypescriptError;
     console.log(error.index);

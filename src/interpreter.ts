@@ -3,6 +3,7 @@ import {
     Grouping,
     UnaOperator,
     BinOperator,
+    Statement,
     get_sign
 } from"../lib/types";
 
@@ -25,18 +26,29 @@ import {
 //     throw new
 //   }
 
+export function interpret_results(res: Array<Statement>) {
+    for (let i = 0; i < res.length; i += 1) {
+        interpret(res[i]);
+    }
+}
+
 // Runs the interpreter
-export function interpret(expr: Expression): Value { 
-    // try {
-  const value: Value = evaluate(expr);
-  return value;
-    // } catch (error) {
-    //     if(error instanceof UntypescriptError) {
-    //         runtimeError(error);
-    //     } else {
-    //         throw error;
-    //     }
-    // }
+export function interpret(expr: Statement): Value | null { 
+    switch (expr.type) {
+        case "Return":
+            return evaluate(expr.expression);
+        case "Print":
+            console.log(evaluate(expr.expression));
+            return null;
+        case "Expression_statement":
+            return evaluate(expr.expression);
+        // TODO
+        case "While":
+        case "Variable_declaration":
+        case "Function_declaration":
+        default:
+            return null;
+    }
 }
 
 // Evaluates the given expression
@@ -128,46 +140,64 @@ function stringify(value: Value): string {
 
 // Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
 function binaryExpr(expr: Binary) {
-    const left: Value = evaluate(expr.left);
-    const right: Value = evaluate(expr.right); 
+    const left: Value | null = evaluate(expr.left);
+    const right: Value | null = evaluate(expr.right); 
+    if (left === null || right === null) {
+        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", expr.left.index);
+    }
 
     switch (expr.operator) {
         case ">":
-            checkNumberOperands(expr);
-            return Number(left) > Number(right);
+            if (typeof left === "number" && typeof right === "number") {
+                return left > right;
+            }
         case ">=":
-            checkNumberOperands(expr);
-            return Number(left) >= Number(right);
+            if (typeof left === "number" && typeof right === "number") {
+                return left >= right;
+            }
         case "<":
-            checkNumberOperands(expr);
-            return Number(left) < Number(right);
+            if (typeof left === "number" && typeof right === "number") {
+                return left < right;
+            }
         case "<=":
-            checkNumberOperands(expr);
-            return Number(left) <= Number(right);
+            if (typeof left === "number" && typeof right === "number") {
+                return left <= right;
+            }
+        case "-":
+            if (typeof left === "number" && typeof right === "number") {
+                return left - right;
+            }
+        case "**":
+            if (typeof left === "number" && typeof right === "number") {
+                return Math.pow(left, right);
+            }
+        case "/":
+            if (typeof left === "number" && typeof right === "number") {
+                return left / right;
+            }
+            // Fall-through runtime error for operators that require two numbers
+            throw new UntypescriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
+        case "*":
+            if (typeof left === "number" && typeof right === "number") {
+                return left * right;
+            } else if (typeof left === "string" && typeof right === "number") {
+                return left.repeat(right);
+            } else if (typeof left === "number" && typeof right === "string") {
+                return right.repeat(left);
+            }
+            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
+        case "+":
+            // Typescript can't deduce that left and right are the same type, so we need two different if conditions
+            if (typeof left === "number" && typeof right === "number") {
+                return left + right;
+            } else if (typeof left === "string" && typeof right === "string") {
+                return left + right;
+            }
+            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or two strings.", expr.index);
         case "!=":
-            checkNumberOperands(expr);
             return !isEqual(left, right);
         case "==":
-            checkNumberOperands(expr);
             return isEqual(left, right);
-        case "-":
-            checkNumberOperands(expr);
-            return Number(left) - Number(right);
-        case "+":
-            if (Object(left) instanceof Number && Object(right) instanceof Number) {
-                return Number(left) + Number(right);
-            } 
-
-            if (Object(left) instanceof String && Object(right) instanceof String) {
-                return String(left) + String(right);
-            }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", expr.index);
-        case "/":
-            checkNumberOperands(expr);
-            return Number(left) / Number(right);
-        case "*":
-            checkNumberOperands(expr);
-            return Number(left) * Number(right);
     }
 
     // Unreachable.

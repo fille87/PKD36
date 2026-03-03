@@ -91,7 +91,7 @@ export function parse(tokens: Token[]): Parser {
     //TODO: Iplement recursive descent parsing
 
     function parse_statement(): Statement {
-        // if(match(TokenType.PRINT)) return parse_print();
+        if(match(TokenType.PRINT)) return parse_print();
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
@@ -289,7 +289,7 @@ export function parse(tokens: Token[]): Parser {
     }
     function parse_factor(): Expression {
         const fact: Expression = parse_unary();
-        while(match(TokenType.TIMES, TokenType.DIVIDE)){
+        while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression  = parse_unary();

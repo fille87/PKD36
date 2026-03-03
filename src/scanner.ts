@@ -6,7 +6,7 @@ export enum TokenType {
     BANG, BANG_EQ, EQUAL, DOUBLE_EQUAL, GREATER, GREATER_EQ, LESS, LESS_EQ,
     RIGHT_PAREN, LEFT_PAREN, LEFT_BRACE, RIGHT_BRACE,
     SEMICOLON, COLON, EOF,
-    AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, TRUE, FALSE, NULL, BREAK, CONTINUE,
+    AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, TRUE, FALSE, NULL, BREAK, CONTINUE, PRINT,
 
     // Tokens that take a literal value
     NUMBER_LIT, STRING_LIT, IDENTIFIER, 
@@ -215,7 +215,7 @@ export function scan(input: string): ScannerResult {
     let errors: Array<UntypescriptError> = [];
     let skip_line = false;
 
-    const keywords: ChainingHashtable<string, TokenType> = ch_empty(14, (word) => word.charCodeAt(0));
+    const keywords: ChainingHashtable<string, TokenType> = ch_empty(15, (word) => word.charCodeAt(0));
     ch_insert(keywords, "and", TokenType.AND);
     ch_insert(keywords, "or", TokenType.OR);
     ch_insert(keywords, "if", TokenType.IF);
@@ -230,6 +230,7 @@ export function scan(input: string): ScannerResult {
     ch_insert(keywords, "null", TokenType.NULL);
     ch_insert(keywords, "break", TokenType.BREAK);
     ch_insert(keywords, "continue", TokenType.CONTINUE);
+    ch_insert(keywords, "print", TokenType.PRINT);
 
 
     while(true) {

@@ -3,7 +3,7 @@ import {list, List} from "./list"
 import { NonEmptyStack } from "./stack";
 import { Token, TokenType } from "../src/scanner"
 
-export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">";
+export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "**";
 export type UnaOperator = "-" | "!";
 export type Operator = BinOperator | UnaOperator;
 export type Value = number | string | boolean | null;
@@ -180,6 +180,7 @@ export type Binary = {
 };
 export type Grouping = {
     type: "Grouping",
+    index: number,
     expresion: Expression
 }
 
@@ -191,6 +192,7 @@ export function get_sign(token: Token): Value {
         case TokenType.MINUS: return "-";
         case TokenType.TIMES: return "*";
         case TokenType.DIVIDE: return "/";
+        case TokenType.POW: return "**";
 
         // Literals
         case TokenType.NUMBER_LIT: 
