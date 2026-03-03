@@ -1,31 +1,18 @@
-import {
-    Expression, Literal, Unary, Binary, Operation, Operator, Value,
-    TokenType, Token,
-    Grouping,
-    UnaOperator,
-    BinOperator,
-    get_sign
-} from"../lib/types";
-
-import {
-    UntypescriptError,
-    ErrorKind
-} from "./error";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var error_1 = require("./error");
 // let hadRuntimeError: boolean = false;
-
 // function runtimeError(RunError: string) {
 //     // console.log(RunError.getMessage() +
 //     //     "\n[line " + RunError.token.line + "]");
 //     hadRuntimeError = true;
 //     throw new
 //   }
-
 // Runs the interpreter
-function interpret(expr: Expression) { 
+function interpret(expr) {
     // try {
-  const value: Value = evaluate(expr);
-  console.log(stringify(value));
+    var value = evaluate(expr);
+    console.log(stringify(value));
     // } catch (error) {
     //     if(error instanceof UntypescriptError) {
     //         runtimeError(error);
@@ -34,9 +21,8 @@ function interpret(expr: Expression) {
     //     }
     // }
 }
-
 // Evaluates the given expression
-function evaluate(expr: Expression): Value {
+function evaluate(expr) {
     switch (expr.type) {
         case "Literal":
             return literalExpr(expr);
@@ -50,21 +36,17 @@ function evaluate(expr: Expression): Value {
     return null; //seems neccesary but have to check
     //return expr.accept.this//Can't get this to work
 }
-
 // Returns the value of the literal expression
-function literalExpr(expr: Literal): Value {
+function literalExpr(expr) {
     return expr.value;
 }
-
 // Evaluates the expression within parentheses
-function groupingExpr(expr: Grouping) {
+function groupingExpr(expr) {
     return evaluate(expr.expresion);
 }
-
 // Evaluates the operand and returns the complete unary expression
-function unaryExpr(expr: Unary) {
-    const operand: Value = evaluate(expr.operand);
-    
+function unaryExpr(expr) {
+    var operand = evaluate(expr.operand);
     switch (expr.operator) {
         case "!":
             return !isTruthy(operand);
@@ -74,41 +56,42 @@ function unaryExpr(expr: Unary) {
     }
     return null;
 }
-
 // Checks if the operand is a number
-function checkNumberOperand(expr: Unary) {
-    if (Object(expr.operand) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operand must be a number.", expr.index); //Change to connect to error module
+function checkNumberOperand(expr) {
+    if (Object(expr.operand) instanceof Number)
+        return;
+    throw new error_1.UntypescriptError(error_1.ErrorKind.RuntimeError, expr.operator + " Operand must be a number.", expr.index); //Change to connect to error module
 }
-
 // Checks if the operands are numbers
-function checkNumberOperands(expr: Binary) {
-    if (Object(expr.left) instanceof Number && Object(expr.right) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be numbers.", expr.index); //Change to connect to error module
+function checkNumberOperands(expr) {
+    if (Object(expr.left) instanceof Number && Object(expr.right) instanceof Number)
+        return;
+    throw new error_1.UntypescriptError(error_1.ErrorKind.RuntimeError, expr.operator + " Operands must be numbers.", expr.index); //Change to connect to error module
 }
-
 // Returns true for all value type Value, except for "null" and "false"
-function isTruthy(value: Value): boolean {
-    if (value == null) return false;
-    if (Object(value) instanceof Boolean) return Boolean(value);
+function isTruthy(value) {
+    if (value == null)
+        return false;
+    if (Object(value) instanceof Boolean)
+        return Boolean(value);
     return true;
 }
-
 // Returns true if the values a and b are equal
-function isEqual(a: Value, b: Value): boolean {
-    if (a == null && b == null) return true;
-    if (a == null || b == null) return false;
+function isEqual(a, b) {
+    if (a == null && b == null)
+        return true;
+    if (a == null || b == null)
+        return false;
     return typeof a === typeof b
-              ? a === b
-                  ? true
-                  : false
-              : false;
+        ? a === b
+            ? true
+            : false
+        : false;
 }
-
 // Converts value to type string
-function stringify(value: Value): string {
-    if (value == null) return "null";
-
+function stringify(value) {
+    if (value == null)
+        return "null";
     /* Don't know if this is neccesary for this implementation
     if (Object(value) instanceof Number) {
       let text: string = value.toString();
@@ -118,15 +101,12 @@ function stringify(value: Value): string {
       return text;
     }
     */
-
     return value.toString();
 }
-
 // Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
-function binaryExpr(expr: Binary) {
-    const left: Value = evaluate(expr.left);
-    const right: Value = evaluate(expr.right); 
-
+function binaryExpr(expr) {
+    var left = evaluate(expr.left);
+    var right = evaluate(expr.right);
     switch (expr.operator) {
         case ">":
             checkNumberOperands(expr);
@@ -152,12 +132,11 @@ function binaryExpr(expr: Binary) {
         case "+":
             if (Object(left) instanceof Number && Object(right) instanceof Number) {
                 return Number(left) + Number(right);
-            } 
-
+            }
             if (Object(left) instanceof String && Object(right) instanceof String) {
                 return String(left) + String(right);
             }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", expr.index); //Change to connect to error module
+            throw new error_1.UntypescriptError(error_1.ErrorKind.RuntimeError, expr.operator + " Operands must be two numbers or two strings.", expr.index); //Change to connect to error module
         case "/":
             checkNumberOperands(expr);
             return Number(left) / Number(right);
@@ -165,7 +144,6 @@ function binaryExpr(expr: Binary) {
             checkNumberOperands(expr);
             return Number(left) * Number(right);
     }
-
     // Unreachable.
     return null;
 }

@@ -20,7 +20,8 @@ export enum ErrorKind {
     SyntaxError,
     UnexpectedToken,
     InvalidAssignment,
-    MissingToken
+    MissingToken,
+    RuntimeError,
 }
 
 type Line = {
