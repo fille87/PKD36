@@ -9,7 +9,11 @@ import {
     Assignment,
     VariableDec,
     Declaration,
-    FunctionDec
+    FunctionDec,
+    Frame,
+    ExpressionBinding,
+    Uninitialized,
+    Binding
 } from"../lib/types";
 
 import {
@@ -21,7 +25,7 @@ import {
     UntypescriptError,
     ErrorKind
 } from "./error";
-import { ch_empty, ch_insert, ch_lookup, ChainingHashtable } from "../lib/hashtables";
+import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert, ph_lookup, ProbingHashtable } from "../lib/hashtables";
 
 // let hadRuntimeError: boolean = false;
 
@@ -32,7 +36,10 @@ import { ch_empty, ch_insert, ch_lookup, ChainingHashtable } from "../lib/hashta
 //     throw new
 //   }
 //
-const GLOBALS: ChainingHashtable<string, Expression> = ch_empty(100, (str) => str.charCodeAt(0));
+const DEFAULT_VARIABLE_SLOTS = 50;
+const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
+const GLOBALS: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
+const frames: Array<Frame> = [ GLOBALS ];
 
 export function interpret_results(res: Array<Statement>) {
     for (let i = 0; i < res.length; i += 1) {
@@ -222,22 +229,55 @@ function binaryExpr(expr: Binary) {
 
 function block(block: Block): Value | null {
     let return_value: Value | null = null;
+    enter_frame();
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
     }
+    exit_frame();
     return return_value;
 }
 
 function var_lookup(name: string): Expression | undefined {
-    return ch_lookup(GLOBALS, name);
+    let frame_index = frames.length - 1;
+    let frame = frames[frame_index];
+    let res = ph_lookup(frame, name);
+    while (res === undefined) {
+        if (frame_index === 0) {
+            return undefined;
+        }
+        frame_index -= 1;
+    }
+    switch (res.type) {
+        case "Expression_Binding":
+            return res.expression;
+        case "Funtion_Binding":
+            //TODO
+            // return res.expression;
+        case "Uninitialized":
+            return undefined;
+    }
 }
 
 function declare(expr: Declaration) {
     switch(expr.type) {
         case "Variable_declaration":
-            ch_insert(GLOBALS, expr.name, expr.initialiser);
+            let val: Uninitialized | ExpressionBinding = expr.initialiser === null
+                ? { type: "Uninitialized" }
+                : { type: "Expression_Binding", expression: expr.initialiser };
+            ph_insert(GLOBALS, expr.name, val);
         case "Function_declaration":
             // TODO
         break;
+    }
+}
+
+function enter_frame() {
+    const frame: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
+    frames.push(frame);
+}
+
+function exit_frame() {
+    if (frames.length > 1) {
+        frames.pop();
     }
 }

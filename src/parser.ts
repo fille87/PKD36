@@ -226,11 +226,15 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_assignment(): Expression {
         const target_token: Token = peek();
+        console.log("Target: " + target_token);
         let expr: Expression = parse_logic_or();
+        console.log("Expr: " + expr);
         if(match(TokenType.EQUAL)){
-            const value: Expression = parse_assignment();
+            console.log("Found equal");
+            const value: Expression = parse_expression();
+            console.log("Type is: " + expr.type);
             if(expr.type === "Variable") {
-                expr = make_assignment(expr.name, value, expr.index);
+                return make_assignment(expr.name, value, expr.index);
             }
             throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
         }

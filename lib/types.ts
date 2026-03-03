@@ -52,11 +52,15 @@ export type Value = number | string | boolean | null;
 
 export type Frame = ProbingHashtable<string, Binding>;
 export type Environment = NonEmptyStack<Frame>;
-export type Binding = VariableBinding | FunctionBinding
+export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
 
-export type VariableBinding = {
-    type: "Variable_Binding",
-    value: Value,
+export type ExpressionBinding = {
+    type: "Expression_Binding",
+    expression: Expression,
+}
+
+export type Uninitialized = {
+    type: "Uninitialized",
 }
 
 export type FunctionBinding = {
@@ -226,7 +230,7 @@ export function get_sign(token: Token): Value {
         case TokenType.IF: return "if";
         case TokenType.NULL: return "null";
         case TokenType.OR: return "or";
-        // case TokenType.PRINT: return "print";
+        case TokenType.PRINT: return "print";
         case TokenType.RETURN: return "return";
         // case TokenType.THIS: return "this";
         case TokenType.TRUE: return "true";
