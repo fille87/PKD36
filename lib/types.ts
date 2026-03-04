@@ -1,5 +1,5 @@
 import { ProbingHashtable } from "./hashtables";
-import {list, List} from "./list"
+import {list, List, Pair} from "./list"
 import { NonEmptyStack } from "./stack";
 import { Token, TokenType } from "../src/scanner"
 
@@ -50,7 +50,10 @@ export type Value = number | string | boolean | null;
 
 
 
-export type Frame = ProbingHashtable<string, Binding>;
+export type Frame = {
+    label: string | null,
+    vars: ProbingHashtable<string, Binding>;
+}
 export type Environment = NonEmptyStack<Frame>;
 // export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
 export type Binding = VariableBinding | FunctionBinding | Uninitialized;
@@ -82,7 +85,7 @@ export type Operation = Unary | Binary;
 
 
 export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
-export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While;
+export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While | Break;
 
 export type Declaration = VariableDec | FunctionDec
 
@@ -106,6 +109,12 @@ export type Call = {
         index: number,
         callee: Expression,
         args: Expression[]
+    }
+
+export type Break = {
+        type: "Break",
+        index: number,
+        label: string | null,
     }
 
 export type While = {

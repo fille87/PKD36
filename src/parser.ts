@@ -6,6 +6,7 @@ import {
     get_sign,
     Statement,
     Block,
+    Break,
 } from"../lib/types";
 import {
     TokenType,
@@ -95,6 +96,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
         if(match(TokenType.PRINT)) return parse_print();
+        if(match(TokenType.BREAK)) return parse_break();
         const expr = parse_expression()
         if (peek().type === TokenType.SEMICOLON) {
             advance();
@@ -133,6 +135,30 @@ export function parse(tokens: Token[]): Parser {
             return make_while(condition, body, name, index)
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index);
+    }
+
+    function parse_break(): Statement {
+        const index = peek().index;
+        if(match(TokenType.SEMICOLON)) {
+            return {
+                type: "Break",
+                index,
+                label: null,
+            };
+        }
+        if (match(TokenType.COLON)) {
+            const label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
+            if (match(TokenType.SEMICOLON)) {
+                return {
+                    type: "Break",
+                    index,
+                    label,
+                };
+            } else {
+                throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; after break label", peek().index - 1);
+            }
+        }
+        throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
     }
 
     function parse_print(): Expression {

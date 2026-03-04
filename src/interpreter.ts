@@ -14,7 +14,8 @@ import {
     Uninitialized,
     Binding,
     While,
-    VariableBinding
+    VariableBinding,
+    Break
 } from"../lib/types";
 
 import {
@@ -41,8 +42,9 @@ import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, d
 //
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
-const GLOBALS: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
+const GLOBALS: Frame = empty_frame();
 let frames: Stack<Frame> = push(GLOBALS, empty_stack());
+let should_break: string | boolean = false;
 
 export function interpret_results(res: Array<Expression>) {
     for (let i = 0; i < res.length; i += 1) {
@@ -66,6 +68,9 @@ export function interpret(expr: Expression): Value | null {
             return null;
         case "Variable_declaration":
             declare(expr as Declaration);
+        case "Break":
+            break_loop(expr as Break);
+            return null;
         // TODO
         case "Function_declaration":
         default:
@@ -234,9 +239,12 @@ function binaryExpr(expr: Binary) {
 
 function block(block: Block): Value | null {
     let return_value: Value | null = null;
-    enter_frame();
+    enter_frame(null);
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
+        if (should_break != false) {
+            break;
+        }
     }
     exit_frame();
     return return_value;
@@ -254,7 +262,7 @@ function var_lookup(expr: {name: string, index: number}): Value {
         // Safety: We've made sure frames is not empty
         frame = pop_frame()!;
         temp_stack = push(frame, temp_stack);
-        res = ph_lookup(frame, expr.name);
+        res = ph_lookup(frame.vars, expr.name);
         if (res != undefined) {
             while(!is_empty(temp_stack)) {
                 const temp = top(temp_stack);
@@ -288,7 +296,7 @@ function declare(expr: Declaration) {
             let val: Uninitialized | VariableBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
                 : { type: "Variable_Binding", value: evaluate(expr.initialiser) };
-            ph_insert(frame, expr.name, val);
+            ph_insert(frame.vars, expr.name, val);
             push_frame(frame);
         case "Function_declaration":
             // TODO
@@ -305,7 +313,7 @@ function assign(expr: Assignment) {
     while (!is_empty(frames)) {
         // We know there's at least one frame since we already found the variable
         frame = pop_frame()!;
-        if (ph_lookup(frame, expr.name) != undefined) {
+        if (ph_lookup(frame.vars, expr.name) != undefined) {
             // Put the frame back before we evaluate the expression
             push_frame(frame);
             const binding: VariableBinding = {
@@ -314,7 +322,7 @@ function assign(expr: Assignment) {
             };
             // Safety: We just pushed this
             frame = pop_frame()!
-            ph_insert(frame, expr.name, binding);
+            ph_insert(frame.vars, expr.name, binding);
             push_frame(frame);
             while(!is_empty(temp_stack)) {
                 const temp = top(temp_stack);
@@ -331,9 +339,19 @@ function assign(expr: Assignment) {
 // TODO: Implement break/continue
 function loop(expr: While): Value | null {
     let return_value: Value | null = null;
+    enter_frame(expr.name);
     while(isTruthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
+        if (should_break != false) {
+            const current_frame = pop_frame();
+            // Safety: We check that frames isn't empty, which means frame isn't undefined
+            if (should_break === true || should_break === current_frame!.label) {
+                should_break = false;
+            }
+            return return_value;
+        }
     }
+    exit_frame();
     return return_value;
 }
 
@@ -350,8 +368,9 @@ function push_frame(frame: Frame) {
     frames = push(frame, frames);
 }
 
-function enter_frame() {
-    const frame: Frame = ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
+function enter_frame(label: string | null) {
+    const frame: Frame = empty_frame();
+    frame.label = label;
     push_frame(frame);
 }
 
@@ -368,5 +387,12 @@ function exit_frame() {
 }
 
 function empty_frame(): Frame {
-    return ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION);
+    return {
+        label: null,
+        vars: ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION),
+    };
+}
+
+function break_loop(expr: Break) {
+    should_break = expr.label != undefined ? expr.label : true;
 }
