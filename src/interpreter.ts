@@ -47,14 +47,16 @@ const GLOBALS: Frame = empty_frame();
 let frames: Stack<Frame> = push(GLOBALS, empty_stack());
 let should_break: string | boolean = false;
 
-export function interpret_results(res: Array<Expression>) {
+export function interpret_results(res: Array<Expression>): Value {
+    let ret_val: Value = null;
     for (let i = 0; i < res.length; i += 1) {
-        interpret(res[i]);
+        ret_val = interpret(res[i]);
     }
+    return ret_val;
 }
 
 // Runs the interpreter
-export function interpret(expr: Expression): Value | null { 
+export function interpret(expr: Expression): Value { 
     switch (expr.type) {
         case "Return":
             return interpret(expr.expression);
