@@ -115,6 +115,7 @@ export type Break = {
         type: "Break",
         index: number,
         label: string | null,
+        return_expr: Expression | null,
     }
 
 export type While = {

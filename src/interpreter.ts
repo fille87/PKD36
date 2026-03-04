@@ -72,7 +72,9 @@ export function interpret(expr: Expression): Value | null {
             return null;
         case "Break":
             break_loop(expr as Break);
-            return null;
+            return expr.return_expr != null
+                ? interpret(expr.return_expr)
+                : null;
         // TODO
         case "Function_declaration":
         default:
@@ -283,6 +285,7 @@ function var_lookup(expr: {name: string, index: number}): Value {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
+            push_frame(frame);
             break;
         }
     }
@@ -328,7 +331,6 @@ function assign(expr: Assignment) {
     }
     let frame: Frame;
     let temp_stack = empty_stack<Frame>();
-    display_stack(frames);
     while (!is_empty(frames)) {
         // We know there's at least one frame since we already found the variable
         frame = pop_frame()!;
@@ -361,6 +363,10 @@ function loop(expr: While): Value | null {
     while(isTruthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
         if (should_break != false) {
+            if (is_empty(frames)) {
+                should_break = false;
+                return return_value;
+            }
             const current_frame = pop_frame();
             // Safety: We check that frames isn't empty, which means frame isn't undefined
             if (should_break === true || should_break === current_frame!.label) {

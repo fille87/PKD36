@@ -145,7 +145,8 @@ export function parse(tokens: Token[]): Parser {
             return {
                 type: "Break",
                 index,
-                label: null
+                label: null,
+                return_expr: ret_val,
             }
         }
         if(match(TokenType.SEMICOLON)) {
@@ -153,6 +154,7 @@ export function parse(tokens: Token[]): Parser {
                 type: "Break",
                 index,
                 label: null,
+                return_expr: null,
             };
         }
         if (match(TokenType.COLON)) {
@@ -162,6 +164,7 @@ export function parse(tokens: Token[]): Parser {
                     type: "Break",
                     index,
                     label,
+                    return_expr: null,
                 };
             } else {
                 throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; after break label", peek().index - 1);
