@@ -1,5 +1,5 @@
 import { UntypescriptError, ErrorKind } from "./error";
-import { ch_lookup, ch_empty, ChainingHashtable, ch_insert } from "../lib/hashtables";
+import { ph_lookup, ph_empty, ph_insert, ProbingHashtable } from "../lib/hashtables";
 
 export enum TokenType {
     COMMA, PLUS, MINUS, TIMES, POW, DIVIDE,
@@ -215,22 +215,22 @@ export function scan(input: string): ScannerResult {
     let errors: Array<UntypescriptError> = [];
     let skip_line = false;
 
-    const keywords: ChainingHashtable<string, TokenType> = ch_empty(15, (word) => word.charCodeAt(0));
-    ch_insert(keywords, "and", TokenType.AND);
-    ch_insert(keywords, "or", TokenType.OR);
-    ch_insert(keywords, "if", TokenType.IF);
-    ch_insert(keywords, "else", TokenType.ELSE);
-    ch_insert(keywords, "loop", TokenType.LOOP);
-    ch_insert(keywords, "while", TokenType.WHILE);
-    ch_insert(keywords, "fn", TokenType.FN);
-    ch_insert(keywords, "var", TokenType.VAR);
-    ch_insert(keywords, "return", TokenType.RETURN);
-    ch_insert(keywords, "true", TokenType.TRUE);
-    ch_insert(keywords, "false", TokenType.FALSE);
-    ch_insert(keywords, "null", TokenType.NULL);
-    ch_insert(keywords, "break", TokenType.BREAK);
-    ch_insert(keywords, "continue", TokenType.CONTINUE);
-    ch_insert(keywords, "print", TokenType.PRINT);
+    const keywords: ProbingHashtable<string, TokenType> = ph_empty(15, (word) => word.charCodeAt(0));
+    ph_insert(keywords, "and", TokenType.AND);
+    ph_insert(keywords, "or", TokenType.OR);
+    ph_insert(keywords, "if", TokenType.IF);
+    ph_insert(keywords, "else", TokenType.ELSE);
+    ph_insert(keywords, "loop", TokenType.LOOP);
+    ph_insert(keywords, "while", TokenType.WHILE);
+    ph_insert(keywords, "fn", TokenType.FN);
+    ph_insert(keywords, "var", TokenType.VAR);
+    ph_insert(keywords, "return", TokenType.RETURN);
+    ph_insert(keywords, "true", TokenType.TRUE);
+    ph_insert(keywords, "false", TokenType.FALSE);
+    ph_insert(keywords, "null", TokenType.NULL);
+    ph_insert(keywords, "break", TokenType.BREAK);
+    ph_insert(keywords, "continue", TokenType.CONTINUE);
+    ph_insert(keywords, "print", TokenType.PRINT);
 
 
     while(true) {
@@ -352,7 +352,7 @@ export function scan(input: string): ScannerResult {
                     continue; // The number scanning already advances to the right position
                 } else if (is_letter(ch)) {
                     const ident = scan_identifier();
-                    const keyword = ch_lookup(keywords, ident.value as string); // Safety: scan_identifier always returns a token with a string in the value field
+                    const keyword = ph_lookup(keywords, ident.value as string); // Safety: scan_identifier always returns a token with a string in the value field
                     output.push(
                         keyword !== undefined 
                             ? token(ident.index, keyword) 
