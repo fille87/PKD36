@@ -116,6 +116,7 @@ export function parse(tokens: Token[]): Parser {
         }
         if(check(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
+            body.label = name;
             return make_while(condition, body, name, index)
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
@@ -139,6 +140,14 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_break(): Statement {
         const index = peek().index;
+        if (match (TokenType.RETURN)) {
+            const ret_val = parse_return();
+            return {
+                type: "Break",
+                index,
+                label: null
+            }
+        }
         if(match(TokenType.SEMICOLON)) {
             return {
                 type: "Break",
@@ -240,7 +249,7 @@ export function parse(tokens: Token[]): Parser {
             if(match(TokenType.ELSE)){
                 if_else = parse_expression();
             }
-            return make_if(if_then, if_else, index);
+            return make_if(condition, if_then, if_else, index);
         }
         return parse_block();
     }
@@ -509,6 +518,7 @@ function make_assignment(name: string, value: Expression, index: number): Expres
 function make_block(body: Expression[], index: number): Expression {
     return {
     type: "Block",
+    label: null, // TODO: Add support for labels
     index,
     body
     }
@@ -522,10 +532,11 @@ function make_expression_statement(expression:Expression, index: number): Expres
     }
 }
 
-function make_if(if_then:Expression, if_else:Expression | null, index:number): Expression {
+function make_if(condition: Expression, if_then:Expression, if_else:Expression | null, index:number): Expression {
     return {
         type: "If",
         index,
+        condition,
         if_then,
         if_else
     }

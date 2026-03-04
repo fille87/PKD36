@@ -15,7 +15,8 @@ import {
     Binding,
     While,
     VariableBinding,
-    Break
+    Break,
+    If
 } from"../lib/types";
 
 import {
@@ -68,6 +69,7 @@ export function interpret(expr: Expression): Value | null {
             return null;
         case "Variable_declaration":
             declare(expr as Declaration);
+            return null;
         case "Break":
             break_loop(expr as Break);
             return null;
@@ -95,6 +97,8 @@ function evaluate(expr: Expression): Value {
             return loop(expr);
         case "Variable":
             return var_lookup(expr);
+        case "If":
+            return conditional(expr);
     }
     return null; //seems neccesary but have to check
     //return expr.accept.this//Can't get this to work
@@ -250,6 +254,16 @@ function block(block: Block): Value | null {
     return return_value;
 }
 
+function conditional(expr: If): Value | null {
+    if(isTruthy(evaluate(expr.condition))) {
+        return interpret(expr.if_then);
+    }
+    if (expr.if_else != null) {
+        return interpret(expr.if_else);
+    }
+    return null;
+}
+
 function var_lookup(expr: {name: string, index: number}): Value {
     const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
     if (is_empty(frames)) {
@@ -293,9 +307,13 @@ function declare(expr: Declaration) {
             if (frame === undefined) {
                 frame = empty_frame();
             }
+            // Put the frame back before evaluating the initialiser
+            push_frame(frame);
             let val: Uninitialized | VariableBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
                 : { type: "Variable_Binding", value: evaluate(expr.initialiser) };
+            // Safety: We just pushed a frame onto frames
+            frame = pop_frame()!;
             ph_insert(frame.vars, expr.name, val);
             push_frame(frame);
         case "Function_declaration":
@@ -310,6 +328,7 @@ function assign(expr: Assignment) {
     }
     let frame: Frame;
     let temp_stack = empty_stack<Frame>();
+    display_stack(frames);
     while (!is_empty(frames)) {
         // We know there's at least one frame since we already found the variable
         frame = pop_frame()!;
@@ -339,7 +358,6 @@ function assign(expr: Assignment) {
 // TODO: Implement break/continue
 function loop(expr: While): Value | null {
     let return_value: Value | null = null;
-    enter_frame(expr.name);
     while(isTruthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
         if (should_break != false) {
@@ -351,7 +369,6 @@ function loop(expr: While): Value | null {
             return return_value;
         }
     }
-    exit_frame();
     return return_value;
 }
 

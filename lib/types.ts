@@ -134,6 +134,7 @@ export type ExpressionStatement = {
 export type If = {
         type: "If",
         index: number,
+        condition: Expression,
         if_then: Expression,
         if_else: Expression | null
 }
@@ -171,6 +172,7 @@ export type Variable = {
 export type Block = {
     type: "Block",
     index: number,
+    label: string | null,
     body: Expression[]
 }
 export type Print = {

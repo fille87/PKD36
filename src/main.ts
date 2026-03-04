@@ -34,7 +34,6 @@ if (has_errors(res)){
 }
 
 const parsed = parse_tokens(res as Array<Token>);
-console.log(parsed);
 
 if (has_errors(parsed)){
     console.log("Could not parse source file '" + basename(path) + "'!\n");
