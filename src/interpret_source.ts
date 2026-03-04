@@ -5,7 +5,7 @@ import { resolve, basename } from "path";
 import { exit } from "process";
 import { parse_tokens } from "./parser";
 import { interpret, interpret_results } from "./interpreter";
-import { Value } from "../lib/types";
+import { Value, While } from "../lib/types";
 
 export function interpret_source(path: string, source: string): Value {
     const display_errors = error_display_init(source);
@@ -19,7 +19,7 @@ export function interpret_source(path: string, source: string): Value {
     }
 
     const parsed = parse_tokens(res as Array<Token>);
-    console.log(parsed);
+    console.log((parsed[0] as While).body.body);
 
     if (has_errors(parsed)){
         console.log("Could not parse source file '" + basename(path) + "'!\n");

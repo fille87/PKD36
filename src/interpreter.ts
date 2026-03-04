@@ -370,11 +370,10 @@ function loop(expr: While): Value | null {
                 should_break = false;
                 return return_value;
             }
-            const current_frame = pop_frame();
-            // Safety: We check that frames isn't empty, which means frame isn't undefined
-            if (should_break === true || should_break === current_frame!.label) {
+            if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
+            pop_frame();
             return return_value;
         }
     }
