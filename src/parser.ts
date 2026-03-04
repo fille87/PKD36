@@ -94,6 +94,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
+        if(match(TokenType.PRINT)) return parse_print();
         const expr = parse_expression()
         if (peek().type === TokenType.SEMICOLON) {
             advance();
@@ -200,7 +201,6 @@ export function parse(tokens: Token[]): Parser {
     function parse_expression(): Expression {
         if(match(TokenType.WHILE)) return parse_while();
         if(match(TokenType.LOOP)) return parse_loop();
-        if(match(TokenType.PRINT)) return parse_print();
         const expr: Expression = parse_if()
         return expr;
     }

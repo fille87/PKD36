@@ -52,11 +52,17 @@ export type Value = number | string | boolean | null;
 
 export type Frame = ProbingHashtable<string, Binding>;
 export type Environment = NonEmptyStack<Frame>;
-export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
+// export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
+export type Binding = VariableBinding | FunctionBinding | Uninitialized;
 
-export type ExpressionBinding = {
-    type: "Expression_Binding",
-    expression: Expression,
+// export type ExpressionBinding = {
+//     type: "Expression_Binding",
+//     expression: Expression,
+// }
+//
+export type VariableBinding = {
+    type: "Variable_Binding",
+    value: Value,
 }
 
 export type Uninitialized = {

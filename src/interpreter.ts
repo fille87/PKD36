@@ -11,9 +11,10 @@ import {
     Declaration,
     FunctionDec,
     Frame,
-    ExpressionBinding,
     Uninitialized,
-    Binding
+    Binding,
+    While,
+    VariableBinding
 } from"../lib/types";
 
 import {
@@ -67,7 +68,6 @@ export function interpret(expr: Expression): Value | null {
             declare(expr as Declaration);
         // TODO
         case "Function_declaration":
-        case "While":
         default:
             return evaluate(expr);
     }
@@ -86,11 +86,10 @@ function evaluate(expr: Expression): Value {
             return binaryExpr(expr);
         case "Block":
             return block(expr);
+        case "While":
+            return loop(expr);
         case "Variable":
-            if (var_lookup(expr) !== undefined) {
-                return interpret(var_lookup(expr)!);
-            }
-            throw new UntypescriptError(ErrorKind.RuntimeError, "'" + expr.name + "' is not defined", expr.index);
+            return var_lookup(expr);
     }
     return null; //seems neccesary but have to check
     //return expr.accept.this//Can't get this to work
@@ -243,7 +242,7 @@ function block(block: Block): Value | null {
     return return_value;
 }
 
-function var_lookup(expr: {name: string, index: number}): Expression {
+function var_lookup(expr: {name: string, index: number}): Value {
     const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
     if (is_empty(frames)) {
         throw error;
@@ -269,8 +268,8 @@ function var_lookup(expr: {name: string, index: number}): Expression {
         throw error;
     }
     switch (res.type) {
-        case "Expression_Binding":
-            return res.expression;
+        case "Variable_Binding":
+            return res.value;
         case "Funtion_Binding":
             //TODO
             // return res.expression;
@@ -286,9 +285,9 @@ function declare(expr: Declaration) {
             if (frame === undefined) {
                 frame = empty_frame();
             }
-            let val: Uninitialized | ExpressionBinding = expr.initialiser === null
+            let val: Uninitialized | VariableBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
-                : { type: "Expression_Binding", expression: expr.initialiser };
+                : { type: "Variable_Binding", value: evaluate(expr.initialiser) };
             ph_insert(frame, expr.name, val);
             push_frame(frame);
         case "Function_declaration":
@@ -301,14 +300,41 @@ function assign(expr: Assignment) {
     if (var_lookup(expr) === undefined) {
         throw new UntypescriptError(ErrorKind.RuntimeError, "Cannot assign to variable '" + expr.name + "' before it is declared", expr.index);
     }
-    // We know there's at least one frame since we already found the variable
-    let frame = pop_frame()!;
-    const binding: ExpressionBinding = {
-        type: "Expression_Binding",
-        expression: expr.value,
-    };
-    ph_insert(frame, expr.name, binding);
-    push_frame(frame);
+    let frame: Frame;
+    let temp_stack = empty_stack<Frame>();
+    while (!is_empty(frames)) {
+        // We know there's at least one frame since we already found the variable
+        frame = pop_frame()!;
+        if (ph_lookup(frame, expr.name) != undefined) {
+            // Put the frame back before we evaluate the expression
+            push_frame(frame);
+            const binding: VariableBinding = {
+                type: "Variable_Binding",
+                value: evaluate(expr.value),
+            };
+            // Safety: We just pushed this
+            frame = pop_frame()!
+            ph_insert(frame, expr.name, binding);
+            push_frame(frame);
+            while(!is_empty(temp_stack)) {
+                const temp = top(temp_stack);
+                temp_stack = pop(temp_stack);
+                push_frame(temp);
+            }
+            return;
+        } else {
+            temp_stack = push(frame, temp_stack);
+        }
+    }
+}
+
+// TODO: Implement break/continue
+function loop(expr: While): Value | null {
+    let return_value: Value | null = null;
+    while(isTruthy(evaluate(expr.condition))) {
+        return_value = interpret(expr.body);
+    }
+    return return_value;
 }
 
 function pop_frame(): Frame | undefined {
