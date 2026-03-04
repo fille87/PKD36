@@ -88,46 +88,45 @@ export function interpret(expr: Expression): Value {
 function evaluate(expr: Expression): Value {
     switch (expr.type) {
         case "Literal":
-            return literalExpr(expr);
+            return literal(expr);
         case "Grouping":
-            return groupingExpr(expr);
+            return grouping(expr);
         case "Unary":
-            return unaryExpr(expr);
+            return unary(expr);
         case "Binary":
-            return binaryExpr(expr);
+            return binary(expr);
         case "Block":
             return block(expr);
         case "While":
             return loop(expr);
         case "Variable":
-            return var_lookup(expr);
+            return lookup(expr);
         case "If":
             return conditional(expr);
     }
     return null; //seems neccesary but have to check
-    //return expr.accept.this//Can't get this to work
 }
 
 // Returns the value of the literal expression
-function literalExpr(expr: Literal): Value {
+function literal(expr: Literal): Value {
     return expr.value;
 }
 
 // Evaluates the expression within parentheses
-function groupingExpr(expr: Grouping) {
+function grouping(expr: Grouping) {
     return evaluate(expr.expresion);
 }
 
 // Evaluates the operand and returns the complete unary expression
-function unaryExpr(expr: Unary) {
+function unary(expr: Unary) {
     const operand: Value = evaluate(expr.operand);
     
     switch (expr.operator) {
         case "!":
-            return !isTruthy(operand);
+            return !is_truthy(operand);
         case "-":
             if(typeof operand != "number") {
-                throw new UntypescriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.index);
+                throw new UntypescriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.operand.index);
             }
             return -operand;
     }
@@ -146,9 +145,9 @@ function checkNumberOperands(expr: Binary) {
 }
 
 // Returns true for all value type Value, except for "null" and "false"
-function isTruthy(value: Value): boolean {
+function is_truthy(value: Value): boolean {
     if (value == null) return false;
-    if (Object(value) instanceof Boolean) return Boolean(value);
+    if (typeof value === "boolean") return value;
     return true;
 }
 
@@ -181,11 +180,13 @@ function stringify(value: Value): string {
 }
 
 // Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
-function binaryExpr(expr: Binary) {
+function binary(expr: Binary) {
     const left: Value | null = evaluate(expr.left);
     const right: Value | null = evaluate(expr.right); 
+
+    // Not actually sure if this is needed, these errors should be caught in parsing
     if (left === null || right === null) {
-        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", expr.left.index);
+        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", (expr.left === null ? expr.left : expr.right).index);
     }
 
     switch (expr.operator) {
@@ -241,9 +242,6 @@ function binaryExpr(expr: Binary) {
         case "==":
             return isEqual(left, right);
     }
-
-    // Unreachable.
-    return null;
 }
 
 function block(block: Block): Value | null {
@@ -260,7 +258,7 @@ function block(block: Block): Value | null {
 }
 
 function conditional(expr: If): Value | null {
-    if(isTruthy(evaluate(expr.condition))) {
+    if(is_truthy(evaluate(expr.condition))) {
         return interpret(expr.if_then);
     }
     if (expr.if_else != null) {
@@ -269,7 +267,7 @@ function conditional(expr: If): Value | null {
     return null;
 }
 
-function var_lookup(expr: {name: string, index: number}): Value {
+function lookup(expr: {name: string, index: number}): Value {
     const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
     if (is_empty(frames)) {
         throw error;
@@ -329,7 +327,7 @@ function declare(expr: Declaration) {
 }
 
 function assign(expr: Assignment) {
-    if (var_lookup(expr) === undefined) {
+    if (lookup(expr) === undefined) {
         throw new UntypescriptError(ErrorKind.RuntimeError, "Cannot assign to variable '" + expr.name + "' before it is declared", expr.index);
     }
     let frame: Frame;
@@ -360,10 +358,9 @@ function assign(expr: Assignment) {
     }
 }
 
-// TODO: Implement break/continue
 function loop(expr: While): Value | null {
     let return_value: Value | null = null;
-    while(isTruthy(evaluate(expr.condition))) {
+    while(is_truthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
         if (should_break != false) {
             if (is_empty(frames)) {
