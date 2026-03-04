@@ -126,11 +126,10 @@ function unaryExpr(expr: Unary) {
         case "!":
             return !isTruthy(operand);
         case "-":
-            const value: Value | null = evaluate(expr.operand);
-            if(typeof value != "number") {
+            if(typeof operand != "number") {
                 throw new UntypescriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.index);
             }
-            return -value;
+            return -operand;
     }
 }
 
