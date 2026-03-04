@@ -2,7 +2,8 @@ var c = 1;
 print gz("Kalle");
 print gz();
 print add(2, 2);
-
+c = c + 5;
+print c;
 fn gz(){
     "congratulations";
 }

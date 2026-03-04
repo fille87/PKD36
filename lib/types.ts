@@ -54,6 +54,13 @@ export type Frame = ProbingHashtable<string, Binding>;
 export type Environment = Stack<Frame>;
 export type Binding = FunctionBinding[] | Value;
 
+export type ExecResult =NormalRes | BreakRes | ReturnRes
+export type NormalRes = { type: "normal"; value: Value; env: Environment }
+export type BreakRes = { type: "break"; value: Value; label: string | null; env: Environment }
+export type ReturnRes ={ type: "return"; value: Value; env: Environment };
+
+
+
 export type VariableBinding = {
     type: "Variable_Binding",
     value: Value,
@@ -79,8 +86,8 @@ export type Operation = Unary | Binary;
 
 
 export type Expression = Literal | Unary | Binary | Grouping 
-            | Block | Identifier | Assignment | If | Logic | Call;
-export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While;
+            | Block | Identifier | Assignment | If | Logic | Call | While;
+export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
 
 export type Declaration = VariableDec | FunctionDec
 
@@ -123,6 +130,7 @@ export type ExpressionStatement = {
 export type If = {
         type: "If",
         index: number,
+        condition: Expression,
         if_then: Expression,
         if_else: Expression | null
 }
@@ -143,7 +151,12 @@ export type ReturnStatement = {
     index: number,
     expression: Expression,
 }
-
+export type Break = {
+        type: "Break",
+        index: number,
+        loop: string | null,
+        return_expr: Expression | null,
+    }
 export type Assignment = {
     type: "Assignment",
     index: number,

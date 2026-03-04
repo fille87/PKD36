@@ -17,7 +17,15 @@ import {
     Environment,
     FunctionBinding,
     Identifier,
-    Call
+    Call,
+    If,
+    Logic,
+    While,
+    ReturnStatement,
+    Break,
+    ExecResult,
+    NormalRes,
+    ReturnRes
 } from"../lib/types";
 
 import {
@@ -54,7 +62,7 @@ export function interpret_results(res: Array<Statement>): void {
     let env: Environment = push(global_frame, st_empty());
     env = get_functions(res, env);
     for (let i = 0; i < res.length; i += 1) {
-        env = interpret(res[i], env)[1];
+        env = interpret(res[i], env).env;
     }
 
 }
@@ -74,52 +82,95 @@ function new_frame(): Frame {
     return ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION)
 }
 // Runs the interpreter
-export function interpret(expr: Statement, env: Environment): [Value, Environment] { 
-    let value: Value = null;
+export function interpret(expr: Statement, env: Environment): ExecResult { 
+    let res: ExecResult = {
+        type:"normal",
+        value: null,
+        env: env
+    }
     switch (expr.type) {
-        case "Return":
-            return evaluate(expr.expression, env);
+        case "Return":{
+            if (expr.expression !== null) {
+                res = evaluate(expr.expression, env);
+            }
+
+            return {
+                type: "return",
+                value: res.value,
+                env: res.env
+            };
+        }
+        case "Break": {
+
+            if (expr.return_expr !== null) {
+                res = evaluate(expr.return_expr, env);
+            }
+
+            return {
+                type: "break",
+                value: res.value,
+                label: expr.loop ?? null,
+                env
+            };
+        }
         case "Print":
-            [value, env] = evaluate(expr.expression, env);
-            console.log(value);
-            return [value, env];
+            res = evaluate(expr.expression, env);
+            console.log(res.value);
+            return res;
         case "Expression_statement":
             return evaluate(expr.expression, env);
-        // TODO
-        case "While":
         case "Variable_declaration":
-                return [value, declare(expr as Declaration, env)];
+            res.env = declare(expr, env)
+            return res;
         default:
-            return [value, env];
+            return res;
     }
 }
 
 // Evaluates the given expression
-function evaluate(expr: Expression, env:Environment): [Value, Environment] {
+function evaluate(expr: Expression, env:Environment): ExecResult {
     // Variable changes the environment and returns a value
     // so evaluate must return both
+    const res: ExecResult = {
+        type: "normal",
+        value: null,
+        env: env
+    }
     switch (expr.type) {
         case "Literal":
-            return [literal_expr(expr), env];
+            res.value = literal_expr(expr);
+            break;
         case "Grouping":
             return grouping_expr(expr, env);
         case "Unary":
             return unary_expr(expr, env);
+
         case "Binary":
             return binary_expr(expr, env);
         case "Block":
             return block(expr, env);
+        case "While":
+            return loop(expr, env);
+
         case "Identifier":
-            return [var_lookup(expr, env), env];
+            res.value = var_lookup(expr, env)
+            return res
+
         case "Assignment":
             return assign_expr(expr, env);
+
         case "Call":
             return call_expr(expr, env);
+
         case "If":
+            return if_expr(expr, env);
+
         case "Logic":
+            return logic_expr(expr, env);
+
             
     }
-    return [null, env]; //seems neccesary but have to check
+    return res; //seems neccesary but have to check
     //return expr.accept.this//Can't get this to work
 }
 
@@ -135,16 +186,16 @@ function grouping_expr(expr: Grouping, env: Environment) {
 }
 
 // Evaluates the operand and returns the complete unary expression
-function unary_expr(expr: Unary, env: Environment): [Value, Environment] {
-    let operand: Value = null;
-    [operand, env] = evaluate(expr.operand, env);
+function unary_expr(expr: Unary, env: Environment): ExecResult {
+    let res:ExecResult = evaluate(expr.operand, env);
     switch (expr.operator) {
         case "!":
-            return [!is_truthy(operand), env];
-            break;
+            res.value = !is_truthy(res.value);
+            return res;
         case "-":
-            check_number_operand(operand, expr);
-            return [-Number(operand), env];
+            check_number_operand(res.value, expr);
+            res.value = -Number(res.value);
+            return res;
     }
 }
 
@@ -198,81 +249,83 @@ function stringify(value: Value): string {
 }
 
 // Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
-function binary_expr(expr: Binary, env:Environment): [Value, Environment]  {
-    let left: Value | null;
-    let right: Value | null;
-    [left, env]= evaluate(expr.left, env);
-    [right, env] = evaluate(expr.right, env);
-    let return_val: Value = null;
-    if (left === null || right === null) {
-        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", expr.left.index);
+function binary_expr(expr: Binary, env:Environment): ExecResult  {
+    let left_res = evaluate(expr.left, env);
+    let right_res = evaluate(expr.right, env);
+    let return_res:ExecResult = {type:"normal", value:null, env}
+    if (left_res.value === null || right_res.value === null) {
+        throw new UntypescriptError(
+            ErrorKind.RuntimeError, 
+            "Expected expression to the " + left_res.value === null ? "left" : "right" + " of '" + expr.operator + "'",expr.left.index);
     }
     
     switch (expr.operator) {
         case ">":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left > right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value > right_res.value; break;
             }
         case ">=":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left >= right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value >= right_res.value; break;
             }
         case "<":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left < right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value < right_res.value; break;
             }
         case "<=":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left <= right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value <= right_res.value; break;
             }
         case "-":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left - right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value - right_res.value; break;
             }
         case "**":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = Math.pow(left, right); break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = Math.pow(left_res.value, right_res.value); break;
             }
         case "/":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left / right; break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value / right_res.value; break;
             }
             // Fall-through runtime error for operators that require two numbers
             throw new UntypescriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
         case "*":
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left * right; break;
-            } else if (typeof left === "string" && typeof right === "number") {
-                return_val = left.repeat(right); break;
-            } else if (typeof left === "number" && typeof right === "string") {
-                return_val = right.repeat(left); break;
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value * right_res.value; break;
+            } else if (typeof left_res.value === "string" && typeof right_res.value === "number") {
+                return_res.value = left_res.value.repeat(right_res.value); break;
+            } else if (typeof left_res.value === "number" && typeof right_res.value === "string") {
+                return_res.value = right_res.value.repeat(left_res.value); break;
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
         case "+":
-            // Typescript can't deduce that left and right are the same type, so we need two different if conditions
-            if (typeof left === "number" && typeof right === "number") {
-                return_val = left + right; break;
-            } else if (typeof left === "string" && typeof right === "string") {
-                return_val = left + right; break;
+            // Typescript can't deduce that left_res.value and right_res.value are the same type, so we need two different if conditions
+            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
+                return_res.value = left_res.value + right_res.value; break;
+            } else if (typeof left_res.value === "string" && typeof right_res.value === "string") {
+                return_res.value = left_res.value + right_res.value; break;
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or two strings.", expr.index);
         case "!=":
-            return_val = !isEqual(left, right); break;
+            return_res.value = !isEqual(left_res.value, right_res.value); break;
         case "==":
-            return_val = isEqual(left, right); break;
+            return_res.value = isEqual(left_res.value, right_res.value); break;
     }
 
     // Unreachable.
-    return [return_val, env];
+    return return_res;
 }
 
-function block(block: Block, env: Environment): [Value, Environment] {
-    let return_value: Value = null;
-    env = st_push(new_frame(), env);
+function block(block: Block, env: Environment): ExecResult {
+    let res: ExecResult = {type:"normal", value: null, env}
+    res.env = st_push(new_frame(), env);
     for (let i = 0; i < block.body.length; i++) {
-        [return_value, env] = interpret(block.body[i], env);
+        res = interpret(block.body[i], res.env);
+        if(res.type === "return" || res.type === "break") break;
     }
-    return [return_value, st_pop(env as NonEmptyStack<Frame>)];
+    res.env = st_pop(res.env as NonEmptyStack<Frame>)
+    return res;
 }
 
 function var_lookup(variable: Identifier, env: Environment): Value {
@@ -306,16 +359,16 @@ function lookup(name:string, env:Environment): Binding | undefined {
 }
 
 function declare(expr: Declaration, env:Environment): Environment {
+    let res: ExecResult = {type:"normal", value: null, env}
     switch(expr.type) {
         case "Variable_declaration":
-            let val: Value;
             if(expr.initialiser === null){
-                val = null;
+                res.value = null;
             } else {
-                [val, env] = evaluate(expr.initialiser, env);
+                res = evaluate(expr.initialiser, env);
             }
-            ph_insert(st_top(env as NonEmptyStack<Frame>), expr.name, val)
-            return env
+            ph_insert(st_top(env as NonEmptyStack<Frame>), expr.name, res.value)
+            return res.env
         case "Function_declaration":
             const frame = st_top(env as NonEmptyStack<Frame>);
 
@@ -345,19 +398,19 @@ function declare(expr: Declaration, env:Environment): Environment {
     }
 }
 
-function assign_expr(assignment: Assignment, env: Environment): [Value, Environment] {
-    let currentEnv = env;
-
+function assign_expr(assignment: Assignment, env: Environment): ExecResult {
+    let res: ExecResult = {type:"normal", value: null, env} 
+    let currentEnv = res.env;
     while (!is_empty(currentEnv)) {
         const frame = st_top(currentEnv);
 
         if (ph_lookup(frame, assignment.name) !== undefined) {
             let value: Value;
-            [value] = evaluate(assignment.value, env);
+            res = evaluate(assignment.value, env);
 
-            ph_insert(frame, assignment.name, value);
+            ph_insert(frame, assignment.name, res.value);
 
-            return [value, env];
+            return res;
         }
 
         currentEnv = st_pop(currentEnv);
@@ -370,8 +423,8 @@ function assign_expr(assignment: Assignment, env: Environment): [Value, Environm
     );
 }
 
-function call_expr(call: Call, env: Environment): [Value, Environment] {
-    let return_value: Value = null;
+function call_expr(call: Call, env: Environment): ExecResult {
+    let res: ExecResult = {type:"normal", value: null, env}
     const binding: Binding | undefined = lookup((call.callee as Identifier).name, env)
     if (!Array.isArray(binding)) {
         throw new UntypescriptError(
@@ -383,22 +436,109 @@ function call_expr(call: Call, env: Environment): [Value, Environment] {
     // finds the functionBinding in the array of bindings to the 
     // callee name that match the number of args given
     const match = binding.find(fn => fn.params.length === call.args.length);
-
+    
     if (!match) {
         throw new UntypescriptError(
             ErrorKind.RuntimeError,
-            `No overload of '${name}' matches ${call.args.length} arguments`,
+            `No overload of '${(call.callee as Identifier).name}' matches ${call.args.length} arguments`,
             call.index
         );
     }
     let new_env = st_push(new_frame(), env) as Environment;
     for(let i = 0; i < call.args.length; i++){
         let val:Value;
-        [val, new_env] = evaluate(call.args[i], new_env)
-        ph_insert(st_top(env as NonEmptyStack<Frame>), match.params[i], val)
+        let eval_res = evaluate(call.args[i], new_env)
+        ph_insert(st_top(eval_res.env as NonEmptyStack<Frame>), match.params[i], eval_res.value)
     }
-    for (let i = 0; i < match.body.body.length; i++) {
-        [return_value, new_env] = interpret(match.body.body[i], new_env);
+    new_env = get_functions(match.body.body, new_env);
+    res = evaluate(match.body, new_env);
+    res.env = st_pop(res.env as NonEmptyStack<Frame>)
+    return res
+}
+
+function if_expr(expr: If, env: Environment): ExecResult {
+
+    let res = evaluate(expr.condition, env);
+    const condition: boolean = is_truthy(res.value);
+    if(condition){
+        return evaluate(expr.if_then, env);
+    } else if(expr.if_else !== null){
+        return evaluate(expr.if_else, env);
     }
-    return [return_value, st_pop(new_env as NonEmptyStack<Frame>)];
+    return {type:"normal", value: null, env}
+}
+
+function logic_expr(expr: Logic, env:Environment): ExecResult {
+    let left_res: ExecResult = {type:"normal", value: null, env}
+    left_res = evaluate(expr.left, env);
+    left_res.value = is_truthy(left_res.value)
+    switch(expr.operator) {
+        case "or":
+            if(is_truthy(left_res.value)){
+                left_res.value = true
+                return left_res
+            }break;
+            
+        case "and":
+            if(!is_truthy(left_res.value)){
+                left_res.value = false
+                return left_res
+            }break;
+    }
+
+    let right_res:ExecResult = evaluate(expr.right, env)
+    right_res.value = is_truthy(right_res.value)
+    return right_res
+
+}
+
+function loop(expr: While, env: Environment): ExecResult {
+    let loopEnv = st_push(new_frame(), env) as Environment;
+
+    while (true) {
+
+        const condRes = evaluate(expr.condition, loopEnv);
+        loopEnv = condRes.env;
+
+        if (!is_truthy(condRes.value)) {
+            return {
+                type: "normal",
+                value: null,
+                env: st_pop(loopEnv as NonEmptyStack<Frame>)
+            };
+        }
+
+        const result = evaluate(expr.body, loopEnv);
+
+        if (result.type === "normal") {
+            loopEnv = result.env;
+            continue;
+        }
+
+        if (result.type === "break") {
+
+            if (result.label === null) {
+                return {
+                    type: "normal",
+                    value: result.value,
+                    env: st_pop(loopEnv as NonEmptyStack<Frame>)
+                };
+            }
+
+            if (result.label === expr.name) {
+                return {
+                    type: "normal",
+                    value: result.value,
+                    env: st_pop(loopEnv as NonEmptyStack<Frame>)
+                };
+            }
+
+            return result;
+        }
+
+        if (result.type === "return") {
+            return result;
+        }
+    }
+
 }
