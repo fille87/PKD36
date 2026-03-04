@@ -1,0 +1,17 @@
+var c = 1;
+print gz("Kalle");
+print gz();
+print add(2, 2);
+
+fn gz(){
+    "congratulations";
+}
+fn gz(birthdayBoy) {
+    print "inside of func";
+    print c;
+    "congratulations " + birthdayBoy;
+}
+
+fn add(a, b){
+    a + b + (-c);
+}

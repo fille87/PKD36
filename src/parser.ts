@@ -1,6 +1,5 @@
 import {
     Expression, Literal, Unary, Binary, Operation, Operator, Value,
-    Grouping,
     UnaOperator,
     BinOperator,
     get_sign,
@@ -107,7 +106,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.COLON)){
             name = get_sign(consume(
                     TokenType.IDENTIFIER, 
-                    "Expected an identifier after :")) as string;
+                    "Expected identifier after :")) as string;
         }
         if(check(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
@@ -135,14 +134,14 @@ export function parse(tokens: Token[]): Parser {
     function parse_print(): Statement {
         const index: number = previous().index;
         const expr: Expression = parse_expression()
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the statement")
+        consume(TokenType.SEMICOLON, "Expected ; at the end of the statement")
         return make_print(expr, index);
     }
 
     function parse_expr_stmt(): Statement {
-        const index: number = peek().index;
+        const index: number = previous().index;
         const expr: Expression = parse_expression();
-        // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
+        consume(TokenType.SEMICOLON, "Expected ; at the end of the expression")
         return make_expr_stmt(expr, index);
     }
 
@@ -156,7 +155,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.EQUAL)){
             init = parse_expression();
         }
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the statement");
+        consume(TokenType.SEMICOLON, "Expected ; at the end of the statement");
         return make_var(name, init, index);
     }
 
@@ -164,14 +163,21 @@ export function parse(tokens: Token[]): Parser {
         const index: number = previous().index;
         const name: string = get_sign(consume(
                 TokenType.IDENTIFIER,
-                "Expected an identifier in head of function declaration")) as string
+                "Expected identifier in head of function declaration")) as string
         const parameters: string[] = []
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name");
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
-                parameters.push(get_sign(consume(
+                const param = get_sign(consume(
                         TokenType.IDENTIFIER, 
-                        "Expect parameter name."))as string);
+                        "Expect parameter name.")) as string
+                if(parameters.includes(param)) {
+                    throw new UntypescriptError(
+                            ErrorKind.SyntaxError,
+                            "A functions parameters must be uniqe",
+                            previous().index);
+                }
+                parameters.push(param);
                         
             } while (match(TokenType.COMMA));
         }
@@ -188,7 +194,7 @@ export function parse(tokens: Token[]): Parser {
     function parse_return(): Statement{
         const index: number = previous().index;
         const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
+        consume(TokenType.SEMICOLON, "Expected ; at the end of the return statement");
         return make_return(expr, index);
     }
 
@@ -226,14 +232,10 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_assignment(): Expression {
         const target_token: Token = peek();
-        console.log("Target: " + target_token);
         let expr: Expression = parse_logic_or();
-        console.log("Expr: " + expr);
         if(match(TokenType.EQUAL)){
-            console.log("Found equal");
             const value: Expression = parse_expression();
-            console.log("Type is: " + expr.type);
-            if(expr.type === "Variable") {
+            if(expr.type === "Identifier") {
                 return make_assignment(expr.name, value, expr.index);
             }
             throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
@@ -287,7 +289,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.PLUS, TokenType.MINUS)){
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_factor();
+            const right: Expression  = parse_term();
             return make_binary(operator, term, right, index);
         }
         return term;
@@ -297,7 +299,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_unary();
+            const right: Expression  = parse_factor();
             return make_binary(operator, fact, right, index)
         }
         return fact;
@@ -342,7 +344,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.NULL)) return make_literal(null, index)
         if(match(TokenType.TRUE)) return make_literal(true, index)
         if(match(TokenType.FALSE)) return make_literal(false, index)
-        if(match(TokenType.IDENTIFIER)) return make_variable(get_sign(previous()) as string, index)
+        if(match(TokenType.IDENTIFIER)) return make_identifier(get_sign(previous()) as string, index)
         if(match(TokenType.NUMBER_LIT, TokenType.STRING_LIT)) {
             const value: Value = get_sign(previous());
             return make_literal(value, index)
@@ -369,6 +371,7 @@ export function parse(tokens: Token[]): Parser {
                 case TokenType.WHILE:
                 case TokenType.RETURN:
                 case TokenType.PRINT:
+                case TokenType.RIGHT_BRACE:
                     return;
             }
 
@@ -430,7 +433,7 @@ function make_print(expr: Expression, index: number): Statement {
     }
 }
 
-function make_var(name:string, initialiser: Expression | null, 
+export function make_var(name:string, initialiser: Expression | null, 
                                                 index: number): Statement {
     return {
         type: "Variable_declaration",
@@ -458,9 +461,9 @@ function make_return(expression: Expression, index: number):Statement{
 }
 }
 
-function make_variable(name: string, index: number): Expression {
+function make_identifier(name: string, index: number): Expression {
     return {
-        type: "Variable", 
+        type: "Identifier", 
         index,
         name
     }

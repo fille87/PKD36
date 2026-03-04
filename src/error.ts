@@ -10,8 +10,14 @@ export class UntypescriptError extends Error {
 
     constructor(kind: ErrorKind, message: string, index: number) {
         super(message);
+
         this.kind = kind;
         this.index = index;
+
+        //apparently extending built-ins like error the prototype chain can break
+        //meaning at runtime js handles this class as if it was Error and not UntypescriptError.
+        //This line slow (or so i've read) but it forces js to recognize UntypescriptError.
+        Object.setPrototypeOf(this, UntypescriptError.prototype);
     }
 }
 
@@ -22,6 +28,7 @@ export enum ErrorKind {
     InvalidAssignment,
     MissingToken,
     RuntimeError,
+    UndeclaredIdentifier,
 }
 
 type Line = {

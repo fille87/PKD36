@@ -1,6 +1,6 @@
 import { ProbingHashtable } from "./hashtables";
 import {list, List} from "./list"
-import { NonEmptyStack } from "./stack";
+import { NonEmptyStack, Stack } from "./stack";
 import { Token, TokenType } from "../src/scanner"
 
 export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "**";
@@ -51,21 +51,24 @@ export type Value = number | string | boolean | null;
 
 
 export type Frame = ProbingHashtable<string, Binding>;
-export type Environment = NonEmptyStack<Frame>;
-export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
+export type Environment = Stack<Frame>;
+export type Binding = FunctionBinding[] | Value;
 
-export type ExpressionBinding = {
-    type: "Expression_Binding",
-    expression: Expression,
+export type VariableBinding = {
+    type: "Variable_Binding",
+    value: Value,
 }
 
 export type Uninitialized = {
     type: "Uninitialized",
 }
 
+
+
 export type FunctionBinding = {
-    type: "Funtion_Binding",
-    args: Variable[],
+    type: "Function_Binding",
+    params: string[], // when called combine with call 
+                    //arguments(Value) to make Variebles(name:value) pairs
     body: Block,
 }
 
@@ -75,7 +78,8 @@ export type FunctionBinding = {
 export type Operation = Unary | Binary;
 
 
-export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call;
+export type Expression = Literal | Unary | Binary | Grouping 
+            | Block | Identifier | Assignment | If | Logic | Call;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While;
 
 export type Declaration = VariableDec | FunctionDec
@@ -147,8 +151,8 @@ export type Assignment = {
     value: Expression,
 }
 
-export type Variable = {
-    type: "Variable",
+export type Identifier = {
+    type: "Identifier",
     index: number,
     name: string,
 }

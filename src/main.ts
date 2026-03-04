@@ -32,7 +32,6 @@ if (has_errors(res)){
     display_errors(res);
     exit(1);
 }
-
 const parsed = parse_tokens(res as Array<Token>);
 
 if (has_errors(parsed)){
@@ -42,11 +41,14 @@ if (has_errors(parsed)){
 }
 
 try {
-    interpret_results(parsed);
+    const inter = interpret_results(parsed);
 } catch (e) {
-    const error = e as UntypescriptError;
-    display_errors([error]);
-    exit(1);
+    if(e instanceof UntypescriptError) {
+        display_errors([e])
+    }   else {
+        throw e
+    }
+    exit(1)
 }
 
 exit(0);
