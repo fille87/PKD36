@@ -55,7 +55,6 @@ export function interpret_results(res: Array<Expression>): Value {
     for (let i = 0; i < res.length; i += 1) {
         ret_val = interpret(res[i]);
     }
-    console.dir(display_stack(frames), {depth: null})
     return ret_val;
 }
 
