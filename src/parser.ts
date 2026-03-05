@@ -1,11 +1,12 @@
 import {
     Expression, Literal, Unary, Binary, Operation, Operator, Value,
+    Grouping,
     UnaOperator,
     BinOperator,
     get_sign,
     Statement,
     Block,
-    While,
+    Break,
 } from"../lib/types";
 import {
     TokenType,
@@ -22,7 +23,7 @@ import {
 
 export type Parser = {
     input: Token[],
-    output: Statement[],
+    output: Expression[],
     errors: UntypescriptError[],
     has_error: boolean,
     current: number,
@@ -30,7 +31,7 @@ export type Parser = {
 
 }
 
-export type ParserResult = Array<Statement> | Array<UntypescriptError>;
+export type ParserResult = Array<Expression> | Array<UntypescriptError>;
 
 export function parse_tokens(tokens: Array<Token>): ParserResult {
     const parser = parse(tokens);
@@ -74,7 +75,7 @@ export function parse(tokens: Token[]): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index);
+        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index); // TODO: Added -1 since the index was pointing at the next token instead of the one with the issue, make sure this actually works consistently though
     }
 
     // comfirms type of token
@@ -90,26 +91,32 @@ export function parse(tokens: Token[]): Parser {
 
     //TODO: Iplement recursive descent parsing
 
-    function parse_statement(): Statement {
-        if(match(TokenType.PRINT)) return parse_print();
+    function parse_statement(): Expression {
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
+        if(match(TokenType.PRINT)) return parse_print();
         if(match(TokenType.BREAK)) return parse_break();
-        return parse_expr_stmt()
+        const expr = parse_expression()
+        if (peek().type === TokenType.SEMICOLON) {
+            advance();
+            return make_expression_statement(expr, expr.index);
+        }
+        return expr;
     }
 
     function parse_while(): Expression {
-        const condition: Expression = parse_expression();
+        const condition: Expression = parse_equality(); // TODO: This is a bugfix to prevent some weird edge cases from being passed as conditions, but does it need to be this restrictive?
         let name : string | null = null // Must be a 
         const index: number = peek().index;
         if(match(TokenType.COLON)){
             name = get_sign(consume(
                     TokenType.IDENTIFIER, 
-                    "Expected identifier after :")) as string;
+                    "Expected an identifier after :")) as string;
         }
         if(check(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
+            body.label = name;
             return make_while(condition, body, name, index)
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
@@ -131,21 +138,57 @@ export function parse(tokens: Token[]): Parser {
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index);
     }
 
-    function parse_print(): Statement {
+    function parse_break(): Statement {
+        const index = peek().index;
+        if (match (TokenType.RETURN)) {
+            const ret_val = parse_return();
+            return {
+                type: "Break",
+                index,
+                label: null,
+                return_expr: ret_val,
+            }
+        }
+        if(match(TokenType.SEMICOLON)) {
+            return {
+                type: "Break",
+                index,
+                label: null,
+                return_expr: null,
+            };
+        }
+        if (match(TokenType.COLON)) {
+            const label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
+            if (match(TokenType.SEMICOLON)) {
+                return {
+                    type: "Break",
+                    index,
+                    label,
+                    return_expr: null,
+                };
+            } else {
+                throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; after break label", peek().index - 1);
+            }
+        }
+        throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
+    }
+
+    function parse_print(): Expression {
         const index: number = previous().index;
         const expr: Expression = parse_expression()
-        consume(TokenType.SEMICOLON, "Expected ; at the end of the statement")
+        consume(TokenType.SEMICOLON, "Expected a ; at the end of print statement")
         return make_print(expr, index);
     }
 
-    function parse_expr_stmt(): Statement {
-        const index: number = previous().index;
+    function parse_expr_stmt(): Expression {
+        const index: number = peek().index;
         const expr: Expression = parse_expression();
-        if(previous().type !== TokenType.RIGHT_BRACE) {
-            consume(TokenType.SEMICOLON, "Expected ; at the end of the expression")
+        if (peek().type === TokenType.SEMICOLON) {
+            advance();
+            return make_expression_statement(expr, index);
         }
-        
-        return make_expr_stmt(expr, index);
+        return expr;
+        // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
     }
 
     function parse_var(): Statement {
@@ -153,14 +196,11 @@ export function parse(tokens: Token[]): Parser {
         const name: string = consume(
                         TokenType.IDENTIFIER,
                         "Expected identifier after var").value as string
-        
         let init: Expression | null = null;
         if(match(TokenType.EQUAL)){
-            if(match(TokenType.WHILE)) return make_var(name, (parse_while() as While), index);
-            if(match(TokenType.LOOP)) return make_var(name, (parse_loop() as While), index);
             init = parse_expression();
         }
-        consume(TokenType.SEMICOLON, "Expected ; at the end of the statement");
+        consume(TokenType.SEMICOLON, "Expected a ; at the end of variable declaration");
         return make_var(name, init, index);
     }
 
@@ -168,21 +208,14 @@ export function parse(tokens: Token[]): Parser {
         const index: number = previous().index;
         const name: string = get_sign(consume(
                 TokenType.IDENTIFIER,
-                "Expected identifier in head of function declaration")) as string
+                "Expected an identifier in head of function declaration")) as string
         const parameters: string[] = []
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name");
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
-                const param = get_sign(consume(
+                parameters.push(get_sign(consume(
                         TokenType.IDENTIFIER, 
-                        "Expect parameter name.")) as string
-                if(parameters.includes(param)) {
-                    throw new UntypescriptError(
-                            ErrorKind.SyntaxError,
-                            "A functions parameters must be uniqe",
-                            previous().index);
-                }
-                parameters.push(param);
+                        "Expect parameter name."))as string);
                         
             } while (match(TokenType.COMMA));
         }
@@ -198,36 +231,11 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_return(): Statement{
         const index: number = previous().index;
-        if(match(TokenType.SEMICOLON)){
-            consume(TokenType.SEMICOLON, "Expected ; at the end of the break statement")
-            return make_return(make_literal(null, index), index)
-        }
         const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected ; at the end of the break statement");
+        consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
         return make_return(expr, index);
     }
-    function parse_break(): Statement {
-        const index: number = previous().index;
-        if(match(TokenType.SEMICOLON))return make_break(null, null, index);
-        if(match(TokenType.COLON)) {
-            const expr: Expression = parse_expression();
-            consume(TokenType.SEMICOLON, "Expected ; at the end of the break statement");
-            return make_break(null, expr, index);
-        }
-        const loop: Expression = parse_primary();
-        if(loop.type !== "Identifier") {
-            throw new UntypescriptError(
-                ErrorKind.UnexpectedToken,
-                "Expected to find identifier after break",
-                loop.index);
-        }
-        if(match(TokenType.SEMICOLON)) return make_break(loop.name, null, index);
-        consume(TokenType.COLON, "Expexted end of break with ; or : followd my expression")
-        const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected ; at the end of the break statement");
-        return make_break(loop.name, expr, index);
-        
-    }
+
     function parse_expression(): Expression {
         if(match(TokenType.WHILE)) return parse_while();
         if(match(TokenType.LOOP)) return parse_loop();
@@ -239,10 +247,10 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.IF)){
             const index: number = previous().index;
             const condition: Expression = parse_expression();
-            const if_then: Expression = parse_block();
+            const if_then: Expression = parse_expression();
             let if_else: Expression | null = null
             if(match(TokenType.ELSE)){
-                if_else = parse_block();
+                if_else = parse_expression();
             }
             return make_if(condition, if_then, if_else, index);
         }
@@ -251,7 +259,7 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_block(): Expression{
         if(match(TokenType.LEFT_BRACE)){
-            const body: Statement[] = []
+            const body: Expression[] = []
             while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
                 body.push(parse_statement());
             }
@@ -262,14 +270,15 @@ export function parse(tokens: Token[]): Parser {
         return parse_assignment();
     }
 
+    // TODO: Might need to hoist this up to earlier since as it is this counts as an expression statement 
+    // and can therefore be used in weird places like while x = 3; {} but won't actually do anything
     function parse_assignment(): Expression {
         const target_token: Token = peek();
         let expr: Expression = parse_logic_or();
         if(match(TokenType.EQUAL)){
-            if(expr.type === "Identifier") {
-                if(match(TokenType.WHILE)) return make_assignment(expr.name, (parse_while() as While), expr.index);
-                if(match(TokenType.LOOP)) return make_assignment(expr.name, (parse_loop() as While), expr.index);
-                const value: Expression = parse_expression();
+            const value: Expression = parse_expression();
+            if(expr.type === "Variable") {
+                consume(TokenType.SEMICOLON, "Expected a ; at the end of variable assignment");
                 return make_assignment(expr.name, value, expr.index);
             }
             throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
@@ -323,7 +332,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.PLUS, TokenType.MINUS)){
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_term();
+            const right: Expression  = parse_factor();
             return make_binary(operator, term, right, index);
         }
         return term;
@@ -333,7 +342,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_factor();
+            const right: Expression  = parse_unary();
             return make_binary(operator, fact, right, index)
         }
         return fact;
@@ -378,7 +387,7 @@ export function parse(tokens: Token[]): Parser {
         if(match(TokenType.NULL)) return make_literal(null, index)
         if(match(TokenType.TRUE)) return make_literal(true, index)
         if(match(TokenType.FALSE)) return make_literal(false, index)
-        if(match(TokenType.IDENTIFIER)) return make_identifier(get_sign(previous()) as string, index)
+        if(match(TokenType.IDENTIFIER)) return make_variable(get_sign(previous()) as string, index)
         if(match(TokenType.NUMBER_LIT, TokenType.STRING_LIT)) {
             const value: Value = get_sign(previous());
             return make_literal(value, index)
@@ -405,7 +414,6 @@ export function parse(tokens: Token[]): Parser {
                 case TokenType.WHILE:
                 case TokenType.RETURN:
                 case TokenType.PRINT:
-                case TokenType.RIGHT_BRACE:
                     return;
             }
 
@@ -418,15 +426,14 @@ export function parse(tokens: Token[]): Parser {
             const statement = parse_statement();
             parser.output.push(statement);
         } catch (e) {
-            if (e instanceof UntypescriptError) {
+            // if (e instanceof UntypescriptError) {
                 parser.errors.push(e as UntypescriptError);
                 synchronize();
-            } else {
-                throw e;
-            }
+            // } else {
+            //     throw e; // real bug → crash
+            // }
         }
     }
-    console.dir(parser.output, {depth: null})
     return parser;
 }
 
@@ -460,7 +467,7 @@ function make_binary(operator: BinOperator, left: Expression,
     }
 }
 
-function make_print(expr: Expression, index: number): Statement {
+function make_print(expr: Expression, index: number): Expression {
     return {
         type: "Print",
         index,
@@ -468,7 +475,7 @@ function make_print(expr: Expression, index: number): Statement {
     }
 }
 
-export function make_var(name:string, initialiser: Expression | null, 
+function make_var(name:string, initialiser: Expression | null, 
                                                 index: number): Statement {
     return {
         type: "Variable_declaration",
@@ -478,7 +485,7 @@ export function make_var(name:string, initialiser: Expression | null,
     }
 }
 
-function make_fn(name:string, params:string[], body: Block, index:number): Statement{
+function make_fn(name:string, params:string[], body: Block, index:number): Statement {
     return {
         type: "Function_declaration",
         index,
@@ -488,7 +495,7 @@ function make_fn(name:string, params:string[], body: Block, index:number): State
     }
 }
 
-function make_return(expression: Expression, index: number):Statement{
+function make_return(expression: Expression, index: number): Statement {
     return {
     type: "Return",
     index,
@@ -496,9 +503,9 @@ function make_return(expression: Expression, index: number):Statement{
 }
 }
 
-function make_identifier(name: string, index: number): Expression {
+function make_variable(name: string, index: number): Expression {
     return {
-        type: "Identifier", 
+        type: "Variable", 
         index,
         name
     }
@@ -513,14 +520,16 @@ function make_assignment(name: string, value: Expression, index: number): Expres
     }
 }
 
-function make_block(body: Statement[], index: number): Expression {
+function make_block(body: Expression[], index: number): Expression {
     return {
     type: "Block",
+    label: null, // TODO: Add support for labels
     index,
     body
     }
 }
-function make_expr_stmt(expression:Expression, index: number): Statement{
+
+function make_expression_statement(expression:Expression, index: number): Expression {
     return {
         type: "Expression_statement",
         index,
@@ -564,14 +573,5 @@ function make_call(callee:Expression, args:Expression[], index:number): Expressi
         index,
         callee,
         args
-    }
-}
-
-function make_break(loop:string | null, return_expr: Expression | null, index: number): Statement {
-    return {
-        type: "Break",
-        index,
-        loop,
-        return_expr,
     }
 }

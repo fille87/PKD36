@@ -1,6 +1,11 @@
 import { ProbingHashtable } from "./hashtables";
+<<<<<<< HEAD
 import {list, List} from "./list"
 import { NonEmptyStack, Stack } from "./stack";
+=======
+import {list, List, Pair} from "./list"
+import { NonEmptyStack } from "./stack";
+>>>>>>> origin/main
 import { Token, TokenType } from "../src/scanner"
 
 export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "**";
@@ -50,17 +55,19 @@ export type Value = number | string | boolean | null;
 
 
 
-export type Frame = ProbingHashtable<string, Binding>;
-export type Environment = Stack<Frame>;
-export type Binding = FunctionBinding[] | Value;
+export type Frame = {
+    label: string | null,
+    vars: ProbingHashtable<string, Binding>;
+}
+export type Environment = NonEmptyStack<Frame>;
+// export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
+export type Binding = VariableBinding | FunctionBinding | Uninitialized;
 
-export type ExecResult =NormalRes | BreakRes | ReturnRes
-export type NormalRes = { type: "normal"; value: Value; env: Environment }
-export type BreakRes = { type: "break"; value: Value; label: string | null; env: Environment }
-export type ReturnRes ={ type: "return"; value: Value; env: Environment };
-
-
-
+// export type ExpressionBinding = {
+//     type: "Expression_Binding",
+//     expression: Expression,
+// }
+//
 export type VariableBinding = {
     type: "Variable_Binding",
     value: Value,
@@ -85,9 +92,14 @@ export type FunctionBinding = {
 export type Operation = Unary | Binary;
 
 
+<<<<<<< HEAD
 export type Expression = Literal | Unary | Binary | Grouping 
             | Block | Identifier | Assignment | If | Logic | Call | While;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
+=======
+export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
+export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While | Break;
+>>>>>>> origin/main
 
 export type Declaration = VariableDec | FunctionDec
 
@@ -111,6 +123,13 @@ export type Call = {
         index: number,
         callee: Expression,
         args: Expression[]
+    }
+
+export type Break = {
+        type: "Break",
+        index: number,
+        label: string | null,
+        return_expr: Expression | null,
     }
 
 export type While = {
@@ -173,7 +192,8 @@ export type Identifier = {
 export type Block = {
     type: "Block",
     index: number,
-    body: Statement[]
+    label: string | null,
+    body: Expression[]
 }
 export type Print = {
     type: "Print",

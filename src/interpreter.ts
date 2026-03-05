@@ -11,38 +11,26 @@ import {
     Declaration,
     FunctionDec,
     Frame,
-    VariableBinding,
     Uninitialized,
     Binding,
-    Environment,
-    FunctionBinding,
-    Identifier,
-    Call,
-    If,
-    Logic,
     While,
-    ReturnStatement,
+    VariableBinding,
     Break,
-    ExecResult,
-    NormalRes,
-    ReturnRes
+    If
 } from"../lib/types";
 
 import {
     Token,
     TokenType
 } from "./scanner";
-import {
-    make_var
-} from "./parser"
+
 import {
     UntypescriptError,
-    ErrorKind
+    ErrorKind,
+    is_error
 } from "./error";
-import { ch_empty, ch_insert, 
-    ch_lookup, ChainingHashtable, 
-    ph_empty, ph_insert, ph_lookup, ProbingHashtable } from "../lib/hashtables";
-import { Stack,top as st_top, empty as st_empty, push, pop as st_pop, push as st_push, is_empty, NonEmptyStack } from "../lib/stack";
+import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
+import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, display_stack } from "../lib/stack";
 
 // let hadRuntimeError: boolean = false;
 
@@ -55,168 +43,111 @@ import { Stack,top as st_top, empty as st_empty, push, pop as st_pop, push as st
 //
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
+const GLOBALS: Frame = empty_frame();
+let frames: Stack<Frame> = push(GLOBALS, empty_stack());
+let should_break: string | boolean = false;
 
-
-export function interpret_results(res: Array<Statement>): void {
-    const global_frame: Frame = get_natives();
-    let env: Environment = push(global_frame, st_empty());
-    env = get_functions(res, env);
+export function interpret_results(res: Array<Expression>): Value {
+    let ret_val: Value = null;
     for (let i = 0; i < res.length; i += 1) {
-        env = interpret(res[i], env).env;
+        ret_val = interpret(res[i]);
     }
+    return ret_val;
+}
 
-}
-function get_natives(): Frame {
-    return new_frame()
-}
-function get_functions(res: Array<Statement>, env:Environment): Environment {
-    env = st_push(new_frame(), env);
-    for (let i = 0; i < res.length; i += 1) {
-        if(res[i].type === "Function_declaration"){
-            env = declare(res[i] as FunctionDec, env)
-        }
-    }
-    return env
-}
-function new_frame(): Frame {
-    return ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION)
-}
 // Runs the interpreter
-export function interpret(expr: Statement, env: Environment): ExecResult { 
-    let res: ExecResult = {
-        type:"normal",
-        value: null,
-        env: env
-    }
+export function interpret(expr: Expression): Value { 
     switch (expr.type) {
-        case "Return":{
-            if (expr.expression !== null) {
-                res = evaluate(expr.expression, env);
-            }
-
-            return {
-                type: "return",
-                value: res.value,
-                env: res.env
-            };
-        }
-        case "Break": {
-
-            if (expr.return_expr !== null) {
-                res = evaluate(expr.return_expr, env);
-            }
-
-            return {
-                type: "break",
-                value: res.value,
-                label: expr.loop ?? null,
-                env
-            };
-        }
+        case "Return":
+            return interpret(expr.expression);
         case "Print":
-            res = evaluate(expr.expression, env);
-            console.log(res.value);
-            return res;
+            console.log(interpret(expr.expression));
+            return null;
         case "Expression_statement":
-            return evaluate(expr.expression, env);
+            interpret(expr.expression);
+            return null;
+        case "Assignment":
+            assign(expr);
+            return null;
         case "Variable_declaration":
-            res.env = declare(expr, env)
-            return res;
+            declare(expr as Declaration);
+            return null;
+        case "Break":
+            break_loop(expr as Break);
+            return expr.return_expr != null
+                ? interpret(expr.return_expr)
+                : null;
+        // TODO
+        case "Function_declaration":
         default:
-            return res;
+            return evaluate(expr);
     }
 }
 
 // Evaluates the given expression
-function evaluate(expr: Expression, env:Environment): ExecResult {
-    // Variable changes the environment and returns a value
-    // so evaluate must return both
-    const res: ExecResult = {
-        type: "normal",
-        value: null,
-        env: env
-    }
+function evaluate(expr: Expression): Value {
     switch (expr.type) {
         case "Literal":
-            res.value = literal_expr(expr);
-            break;
+            return literal(expr);
         case "Grouping":
-            return grouping_expr(expr, env);
+            return grouping(expr);
         case "Unary":
-            return unary_expr(expr, env);
-
+            return unary(expr);
         case "Binary":
-            return binary_expr(expr, env);
+            return binary(expr);
         case "Block":
-            return block(expr, env);
+            return block(expr);
         case "While":
-            return loop(expr, env);
-
-        case "Identifier":
-            res.value = var_lookup(expr, env)
-            return res
-
-        case "Assignment":
-            return assign_expr(expr, env);
-
-        case "Call":
-            return call_expr(expr, env);
-
+            return loop(expr);
+        case "Variable":
+            return lookup(expr);
         case "If":
-            return if_expr(expr, env);
-
-        case "Logic":
-            return logic_expr(expr, env);
-
-            
+            return conditional(expr);
     }
-    return res; //seems neccesary but have to check
-    //return expr.accept.this//Can't get this to work
+    return null; //seems neccesary but have to check
 }
 
 // Returns the value of the literal expression
-function literal_expr(expr: Literal): Value {
+function literal(expr: Literal): Value {
     return expr.value;
 }
 
 // Evaluates the expression within parentheses
-// NOTE: Grouping does not exist as it seems to be unnecessary for NOW
-function grouping_expr(expr: Grouping, env: Environment) {
-    return evaluate(expr.expresion, env);
+function grouping(expr: Grouping) {
+    return evaluate(expr.expresion);
 }
 
 // Evaluates the operand and returns the complete unary expression
-function unary_expr(expr: Unary, env: Environment): ExecResult {
-    let res:ExecResult = evaluate(expr.operand, env);
+function unary(expr: Unary) {
+    const operand: Value = evaluate(expr.operand);
+    
     switch (expr.operator) {
         case "!":
-            res.value = !is_truthy(res.value);
-            return res;
+            return !is_truthy(operand);
         case "-":
-            check_number_operand(res.value, expr);
-            res.value = -Number(res.value);
-            return res;
+            if(typeof operand != "number") {
+                throw new UntypescriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.operand.index);
+            }
+            return -operand;
     }
 }
 
-
-
 // Checks if the operand is a number
-function check_number_operand(value: Value, unary:Unary) {
-    if (Object(value) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, unary.operator + " Operand must be a number.", unary.operand.index); //Change to connect to error module
+function checkNumberOperand(expr: Unary) {
+    if (Object(expr.operand) instanceof Number) return;
+    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operand must be a number.", expr.index); //Change to connect to error module
 }
 
 // Checks if the operands are numbers
-function check_number_operands(left:Value, right: Value, binary: Binary) {
-    if (Object(left) instanceof Number && Object(right) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, binary.operator + " Operands must be numbers.", binary.index); //Change to connect to error module
+function checkNumberOperands(expr: Binary) {
+    if (Object(expr.left) instanceof Number && Object(expr.right) instanceof Number) return;
+    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be numbers.", expr.index); //Change to connect to error module
 }
 
 // Returns true for all value type Value, except for "null" and "false"
 function is_truthy(value: Value): boolean {
     if (value == null) return false;
-    if (Object(value) instanceof Boolean) return Boolean(value);
+    if (typeof value === "boolean") return value;
     return true;
 }
 
@@ -249,296 +180,241 @@ function stringify(value: Value): string {
 }
 
 // Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
-function binary_expr(expr: Binary, env:Environment): ExecResult  {
-    let left_res = evaluate(expr.left, env);
-    let right_res = evaluate(expr.right, env);
-    let return_res:ExecResult = {type:"normal", value:null, env}
-    if (left_res.value === null || right_res.value === null) {
-        throw new UntypescriptError(
-            ErrorKind.RuntimeError, 
-            "Expected expression to the " + left_res.value === null ? "left" : "right" + " of '" + expr.operator + "'",expr.left.index);
+function binary(expr: Binary) {
+    const left: Value | null = evaluate(expr.left);
+    const right: Value | null = evaluate(expr.right); 
+
+    // Not actually sure if this is needed, these errors should be caught in parsing
+    if (left === null || right === null) {
+        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", (expr.left === null ? expr.left : expr.right).index);
     }
-    
+
     switch (expr.operator) {
         case ">":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value > right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left > right;
             }
         case ">=":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value >= right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left >= right;
             }
         case "<":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value < right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left < right;
             }
         case "<=":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value <= right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left <= right;
             }
         case "-":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value - right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left - right;
             }
         case "**":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = Math.pow(left_res.value, right_res.value); break;
+            if (typeof left === "number" && typeof right === "number") {
+                return Math.pow(left, right);
             }
         case "/":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value / right_res.value; break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left / right;
             }
             // Fall-through runtime error for operators that require two numbers
             throw new UntypescriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
         case "*":
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value * right_res.value; break;
-            } else if (typeof left_res.value === "string" && typeof right_res.value === "number") {
-                return_res.value = left_res.value.repeat(right_res.value); break;
-            } else if (typeof left_res.value === "number" && typeof right_res.value === "string") {
-                return_res.value = right_res.value.repeat(left_res.value); break;
+            if (typeof left === "number" && typeof right === "number") {
+                return left * right;
+            } else if (typeof left === "string" && typeof right === "number") {
+                return left.repeat(right);
+            } else if (typeof left === "number" && typeof right === "string") {
+                return right.repeat(left);
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
         case "+":
-            // Typescript can't deduce that left_res.value and right_res.value are the same type, so we need two different if conditions
-            if (typeof left_res.value === "number" && typeof right_res.value === "number") {
-                return_res.value = left_res.value + right_res.value; break;
-            } else if (typeof left_res.value === "string" && typeof right_res.value === "string") {
-                return_res.value = left_res.value + right_res.value; break;
+            // Typescript can't deduce that left and right are the same type, so we need two different if conditions
+            if (typeof left === "number" && typeof right === "number") {
+                return left + right;
+            } else if (typeof left === "string" && typeof right === "string") {
+                return left + right;
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or two strings.", expr.index);
         case "!=":
-            return_res.value = !isEqual(left_res.value, right_res.value); break;
+            return !isEqual(left, right);
         case "==":
-            return_res.value = isEqual(left_res.value, right_res.value); break;
+            return isEqual(left, right);
     }
-
-    // Unreachable.
-    return return_res;
 }
 
-function block(block: Block, env: Environment): ExecResult {
-    let res: ExecResult = {type:"normal", value: null, env}
-    res.env = st_push(new_frame(), env);
-    for (let i = 0; i < block.body.length; i++) {
-        res = interpret(block.body[i], res.env);
-        if(res.type === "return" || res.type === "break") break;
-    }
-    res.env = st_pop(res.env as NonEmptyStack<Frame>)
-    return res;
-}
-
-function var_lookup(variable: Identifier, env: Environment): Value {
-    const binding: Binding | undefined = lookup(variable.name, env);
-    if (!(typeof binding === "undefined")) {
-        if(typeof binding === "object") return `<fn ${variable.name}>`;
-        return binding
-    }
-    throw new UntypescriptError(
-        ErrorKind.UndeclaredIdentifier,
-        `'${variable.name}' is not defined`,
-        variable.index
-    );
-}
-
-function lookup(name:string, env:Environment): Binding | undefined {
-     let currentEnv = env;
-
-    while (!is_empty(currentEnv)) {
-        const frame = st_top(currentEnv);
-        const value = ph_lookup(frame, name);
-
-        if (value !== undefined) {
-            return value;
+function block(block: Block): Value | null {
+    let return_value: Value | null = null;
+    enter_frame(null);
+    for (let i = 0; i < block.body.length; i += 1) {
+        return_value = interpret(block.body[i]);
+        if (should_break != false) {
+            break;
         }
-
-        currentEnv = st_pop(currentEnv);
     }
-
-    return undefined
+    exit_frame();
+    return return_value;
 }
 
-function declare(expr: Declaration, env:Environment): Environment {
-    let res: ExecResult = {type:"normal", value: null, env}
+function conditional(expr: If): Value | null {
+    if(is_truthy(evaluate(expr.condition))) {
+        return interpret(expr.if_then);
+    }
+    if (expr.if_else != null) {
+        return interpret(expr.if_else);
+    }
+    return null;
+}
+
+function lookup(expr: {name: string, index: number}): Value {
+    const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
+    if (is_empty(frames)) {
+        throw error;
+    }
+    let temp_stack = empty_stack<Frame>();
+    let res: Binding | undefined;
+    let frame: Frame;
+    while(!is_empty(frames)) {
+        // Safety: We've made sure frames is not empty
+        frame = pop_frame()!;
+        temp_stack = push(frame, temp_stack);
+        res = ph_lookup(frame.vars, expr.name);
+        if (res != undefined) {
+            while(!is_empty(temp_stack)) {
+                const temp = top(temp_stack);
+                temp_stack = pop(temp_stack);
+                push_frame(temp);
+            }
+            push_frame(frame);
+            break;
+        }
+    }
+    if (res === undefined) {
+        throw error;
+    }
+    switch (res.type) {
+        case "Variable_Binding":
+            return res.value;
+        case "Funtion_Binding":
+            //TODO
+            // return res.expression;
+        case "Uninitialized":
+            throw new UntypescriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
+    }
+}
+
+function declare(expr: Declaration) {
     switch(expr.type) {
         case "Variable_declaration":
-            if(expr.initialiser === null){
-                res.value = null;
-            } else {
-                res = evaluate(expr.initialiser, env);
+            let frame = pop_frame();
+            if (frame === undefined) {
+                frame = empty_frame();
             }
-            ph_insert(st_top(env as NonEmptyStack<Frame>), expr.name, res.value)
-            return res.env
+            // Put the frame back before evaluating the initialiser
+            push_frame(frame);
+            let val: Uninitialized | VariableBinding = expr.initialiser === null
+                ? { type: "Uninitialized" }
+                : { type: "Variable_Binding", value: evaluate(expr.initialiser) };
+            // Safety: We just pushed a frame onto frames
+            frame = pop_frame()!;
+            ph_insert(frame.vars, expr.name, val);
+            push_frame(frame);
         case "Function_declaration":
-            const frame = st_top(env as NonEmptyStack<Frame>);
+            // TODO
+        break;
+    }
+}
 
-            const existing = ph_lookup(frame, expr.name);
-
-            const fn: FunctionBinding = {
-                type: "Function_Binding",
-                params: expr.params,
-                body: expr.body,
+function assign(expr: Assignment) {
+    if (lookup(expr) === undefined) {
+        throw new UntypescriptError(ErrorKind.RuntimeError, "Cannot assign to variable '" + expr.name + "' before it is declared", expr.index);
+    }
+    let frame: Frame;
+    let temp_stack = empty_stack<Frame>();
+    while (!is_empty(frames)) {
+        // We know there's at least one frame since we already found the variable
+        frame = pop_frame()!;
+        if (ph_lookup(frame.vars, expr.name) != undefined) {
+            // Put the frame back before we evaluate the expression
+            push_frame(frame);
+            const binding: VariableBinding = {
+                type: "Variable_Binding",
+                value: evaluate(expr.value),
             };
-
-            if (existing === undefined) {
-
-                ph_insert(frame, expr.name, [fn]);
-            } else if (Array.isArray(existing)) {
-
-                existing.push(fn);
-            } else {
-                throw new UntypescriptError(
-                    ErrorKind.RuntimeError,
-                    `Cannot overload non-function '${expr.name}'`,
-                    expr.index
-                );
+            // Safety: We just pushed this
+            frame = pop_frame()!
+            ph_insert(frame.vars, expr.name, binding);
+            push_frame(frame);
+            while(!is_empty(temp_stack)) {
+                const temp = top(temp_stack);
+                temp_stack = pop(temp_stack);
+                push_frame(temp);
             }
-
-    return env;
-    }
-}
-
-function assign_expr(assignment: Assignment, env: Environment): ExecResult {
-    let res: ExecResult = {type:"normal", value: null, env} 
-    let currentEnv = res.env;
-    while (!is_empty(currentEnv)) {
-        const frame = st_top(currentEnv);
-
-        if (ph_lookup(frame, assignment.name) !== undefined) {
-            let value: Value;
-            res = evaluate(assignment.value, env);
-
-            ph_insert(frame, assignment.name, res.value);
-
-            return res;
+            return;
+        } else {
+            temp_stack = push(frame, temp_stack);
         }
-
-        currentEnv = st_pop(currentEnv);
     }
-
-    throw new UntypescriptError(
-        ErrorKind.UndeclaredIdentifier,
-        `'${assignment.name}' is not defined`,
-        assignment.index
-    );
 }
 
-function call_expr(call: Call, env: Environment): ExecResult {
-    let res: ExecResult = {type:"normal", value: null, env}
-    const binding: Binding | undefined = lookup((call.callee as Identifier).name, env)
-    if (!Array.isArray(binding)) {
-        throw new UntypescriptError(
-            ErrorKind.RuntimeError,
-            `Expected to find function bound to identifier, instead found ${typeof binding}`,
-            call.index
-        );
-    }
-    // finds the functionBinding in the array of bindings to the 
-    // callee name that match the number of args given
-    const match = binding.find(fn => fn.params.length === call.args.length);
-    
-    if (!match) {
-        throw new UntypescriptError(
-            ErrorKind.RuntimeError,
-            `No overload of '${(call.callee as Identifier).name}' matches ${call.args.length} arguments`,
-            call.index
-        );
-    }
-    let new_env = st_push(new_frame(), env) as Environment;
-    for(let i = 0; i < call.args.length; i++){
-        let val:Value;
-        let eval_res = evaluate(call.args[i], new_env)
-        ph_insert(st_top(eval_res.env as NonEmptyStack<Frame>), match.params[i], eval_res.value)
-    }
-    new_env = get_functions(match.body.body, new_env);
-    res = evaluate(match.body, new_env);
-    res.env = st_pop(res.env as NonEmptyStack<Frame>)
-    return res
-}
-
-function if_expr(expr: If, env: Environment): ExecResult {
-
-    let res = evaluate(expr.condition, env);
-    const condition: boolean = is_truthy(res.value);
-    if(condition){
-        return evaluate(expr.if_then, env);
-    } else if(expr.if_else !== null){
-        return evaluate(expr.if_else, env);
-    }
-    return {type:"normal", value: null, env}
-}
-
-function logic_expr(expr: Logic, env:Environment): ExecResult {
-    let left_res: ExecResult = {type:"normal", value: null, env}
-    left_res = evaluate(expr.left, env);
-    left_res.value = is_truthy(left_res.value)
-    switch(expr.operator) {
-        case "or":
-            if(is_truthy(left_res.value)){
-                left_res.value = true
-                return left_res
-            }break;
-            
-        case "and":
-            if(!is_truthy(left_res.value)){
-                left_res.value = false
-                return left_res
-            }break;
-    }
-
-    let right_res:ExecResult = evaluate(expr.right, env)
-    right_res.value = is_truthy(right_res.value)
-    return right_res
-
-}
-
-function loop(expr: While, env: Environment): ExecResult {
-    let loopEnv = st_push(new_frame(), env) as Environment;
-
-    while (true) {
-
-        const condRes = evaluate(expr.condition, loopEnv);
-        loopEnv = condRes.env;
-
-        if (!is_truthy(condRes.value)) {
-            return {
-                type: "normal",
-                value: null,
-                env: st_pop(loopEnv as NonEmptyStack<Frame>)
-            };
-        }
-
-        const result = evaluate(expr.body, loopEnv);
-
-        if (result.type === "normal") {
-            loopEnv = result.env;
-            continue;
-        }
-
-        if (result.type === "break") {
-
-            if (result.label === null) {
-                return {
-                    type: "normal",
-                    value: result.value,
-                    env: st_pop(loopEnv as NonEmptyStack<Frame>)
-                };
+function loop(expr: While): Value | null {
+    let return_value: Value | null = null;
+    while(is_truthy(evaluate(expr.condition))) {
+        return_value = interpret(expr.body);
+        if (should_break != false) {
+            if (is_empty(frames)) {
+                should_break = false;
+                return return_value;
             }
-
-            if (result.label === expr.name) {
-                return {
-                    type: "normal",
-                    value: result.value,
-                    env: st_pop(loopEnv as NonEmptyStack<Frame>)
-                };
+            if (should_break === true || should_break === expr.name) {
+                should_break = false;
             }
-
-            return result;
-        }
-
-        if (result.type === "return") {
-            return result;
+            pop_frame();
+            return return_value;
         }
     }
+    return return_value;
+}
 
+function pop_frame(): Frame | undefined {
+    if (is_empty(frames)) {
+        return undefined;
+    } 
+    const frame = top(frames);
+    frames = pop(frames);
+    return frame;
+}
+
+function push_frame(frame: Frame) {
+    frames = push(frame, frames);
+}
+
+function enter_frame(label: string | null) {
+    const frame: Frame = empty_frame();
+    frame.label = label;
+    push_frame(frame);
+}
+
+function exit_frame() {
+    if (is_empty(frames)) {
+        push_frame(empty_frame());
+        return;
+    }
+    frames = pop(frames);
+
+    if (is_empty(frames)) {
+        push_frame(empty_frame());
+    }
+}
+
+function empty_frame(): Frame {
+    return {
+        label: null,
+        vars: ph_empty(DEFAULT_VARIABLE_SLOTS, HASH_FUNCTION),
+    };
+}
+
+function break_loop(expr: Break) {
+    should_break = expr.label != undefined ? expr.label : true;
 }

@@ -1,17 +1,13 @@
 import { readFileSync } from "fs";
-import { init as error_display_init, has_errors, UntypescriptError } from "./error";
-import { scan, Token } from "./scanner";
-import { resolve, basename } from "path";
 import { exit } from "process";
-import { parse_tokens } from "./parser";
-import { interpret, interpret_results } from "./interpreter";
+import { interpret_source } from "./interpret_source";
+import { resolve } from "path";
 
 const source_file = process.argv[2];
 if (source_file === undefined) {
     console.log("No file specified");
     exit(1);
 }
-
 
 const path = resolve(__dirname, source_file);
 let source: string;
@@ -23,32 +19,6 @@ try {
     exit(1);
 }
 
-const display_errors = error_display_init(source);
-
-const res = scan(source);
-
-if (has_errors(res)){
-    console.log("Could not parse source file '" + basename(path) + "'!\n");
-    display_errors(res);
-    exit(1);
-}
-const parsed = parse_tokens(res as Array<Token>);
-
-if (has_errors(parsed)){
-    console.log("Could not parse source file '" + basename(path) + "'!\n");
-    display_errors(parsed);
-    exit(1);
-}
-
-try {
-    const inter = interpret_results(parsed);
-} catch (e) {
-    if(e instanceof UntypescriptError) {
-        display_errors([e])
-    }   else {
-        throw e
-    }
-    exit(1)
-}
+interpret_source(path, source);
 
 exit(0);
