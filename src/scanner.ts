@@ -191,7 +191,7 @@ export function scan(input: string): ScannerResult {
     // Scan an identifier
     function scan_identifier(): Token {
         const start = scanner.index;
-        while(is_letter(peek()) || is_digit(peek())) {
+        while(is_letter(peek()) || is_digit(peek()) || peek() == "_") {
             advance();
         }
 
@@ -343,7 +343,7 @@ export function scan(input: string): ScannerResult {
                         output.push(n);
                     }
                     continue; // The number scanning already advances to the right position
-                } else if (is_letter(ch)) {
+                } else if (is_letter(ch) || ch == "_") {
                     const ident = scan_identifier();
                     const keyword = ph_lookup(keywords, ident.value as string); // Safety: scan_identifier always returns a token with a string in the value field
                     output.push(
