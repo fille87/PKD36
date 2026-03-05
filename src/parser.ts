@@ -7,6 +7,7 @@ import {
     Statement,
     Block,
     Break,
+    Variable,
 } from"../lib/types";
 import {
     TokenType,
@@ -359,8 +360,15 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_call(): Expression {
         let expr: Expression = parse_primary();
+
         while (true) {
             if(match(TokenType.LEFT_PAREN)){
+                if(expr.type !== "Variable"){
+                    throw new UntypescriptError(
+                        ErrorKind.UnexpectedToken,
+                        "Call must be done on identifier",
+                        expr.index)
+                    }
                 expr = finish_call(expr);
             } else {
                 break
@@ -370,7 +378,7 @@ export function parse(tokens: Token[]): Parser {
         return expr;
     }
 
-    function finish_call(callee: Expression): Expression {
+    function finish_call(callee: Variable): Expression {
         const args: Expression[] = [];
         const index: number = previous().index
         if (!check(TokenType.RIGHT_PAREN)) {
@@ -567,7 +575,7 @@ function make_while(condition: Expression, body: Block, name: string | null, ind
     }
 }
 
-function make_call(callee:Expression, args:Expression[], index:number): Expression {
+function make_call(callee:Variable, args:Expression[], index:number): Expression {
     return {
         type: "Call",
         index,

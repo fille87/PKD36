@@ -16,7 +16,9 @@ import {
     While,
     VariableBinding,
     Break,
-    If
+    If,
+    Call,
+    FunctionBinding
 } from"../lib/types";
 
 import {
@@ -46,6 +48,7 @@ const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
 const GLOBALS: Frame = empty_frame();
 let frames: Stack<Frame> = push(GLOBALS, empty_stack());
 let should_break: string | boolean = false;
+let should_return: boolean = false;
 
 export function interpret_results(res: Array<Expression>): Value {
     let ret_val: Value = null;
@@ -59,7 +62,10 @@ export function interpret_results(res: Array<Expression>): Value {
 export function interpret(expr: Expression): Value { 
     switch (expr.type) {
         case "Return":
-            return interpret(expr.expression);
+            should_return = true;
+            return expr.expression != null
+                ? interpret(expr.expression)
+                : null
         case "Print":
             console.log(interpret(expr.expression));
             return null;
@@ -79,6 +85,8 @@ export function interpret(expr: Expression): Value {
                 : null;
         // TODO
         case "Function_declaration":
+            declare(expr as FunctionDec);
+            return null;
         default:
             return evaluate(expr);
     }
@@ -103,6 +111,8 @@ function evaluate(expr: Expression): Value {
             return lookup(expr);
         case "If":
             return conditional(expr);
+        case "Call":
+            return call(expr)
     }
     return null; //seems neccesary but have to check
 }
@@ -293,36 +303,62 @@ function lookup(expr: {name: string, index: number}): Value {
     if (res === undefined) {
         throw error;
     }
+    // Cant assign so best we can do is return name of function
+    if(Array.isArray(res)){
+        return `<fn ${expr.name}>`
+    }
     switch (res.type) {
         case "Variable_Binding":
             return res.value;
-        case "Funtion_Binding":
-            //TODO
-            // return res.expression;
         case "Uninitialized":
             throw new UntypescriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
     }
 }
 
-function declare(expr: Declaration) {
+function declare(expr: Declaration): void {
+    let frame = pop_frame();
+    if (frame === undefined) {
+        frame = empty_frame();
+    }
     switch(expr.type) {
         case "Variable_declaration":
-            let frame = pop_frame();
-            if (frame === undefined) {
-                frame = empty_frame();
-            }
             // Put the frame back before evaluating the initialiser
             push_frame(frame);
             let val: Uninitialized | VariableBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
-                : { type: "Variable_Binding", value: evaluate(expr.initialiser) };
+                : { type: "Variable_Binding", value: evaluate(expr.initialiser)};
             // Safety: We just pushed a frame onto frames
             frame = pop_frame()!;
             ph_insert(frame.vars, expr.name, val);
             push_frame(frame);
         case "Function_declaration":
-            // TODO
-        break;
+            const existing = ph_lookup(frame.vars, expr.name);
+            const function_dec: FunctionDec = expr as FunctionDec;
+            const fn: FunctionBinding = {
+                type: "Function_Binding",
+                params: function_dec.params,
+                body: function_dec.body,
+            };
+            // if there already is a variable with the same name overwrite that var
+            if (existing === undefined || !Array.isArray(existing)) {
+                ph_insert(frame.vars, expr.name, [fn]);
+                return;
+            } else {
+                const match = existing.find(fn => 
+                    fn.params.length === function_dec.params.length)
+                // no function with the same name and same number of params
+                if(match !== undefined) {
+                    existing.push(fn);
+                    return
+                } else {
+                    throw new UntypescriptError(
+                    ErrorKind.InvalidAssignment,
+                    `Function already exists`,
+                    expr.index
+                );
+            
+                }
+            } 
     }
 }
 
@@ -376,6 +412,81 @@ function loop(expr: While): Value | null {
     }
     return return_value;
 }
+
+function call(call: Call): Value {
+    // must lookup outside of lookup function otherwise we have to rebuild the entire system
+    // with bindings instead instead of values so that we can pass along bindings
+    // this would also allow for variables to be assigned to functions
+    const error = new UntypescriptError(
+        ErrorKind.RuntimeError, 
+        "Couldn't find variable '" + call.callee.name + "' in the current scope",
+        call.index);
+    if (is_empty(frames)) {
+        throw error;
+    }
+    const callee: string = call.callee.name;
+    let temp_stack = empty_stack<Frame>();
+    let res: Binding | undefined;
+    let frame: Frame;
+    while(!is_empty(frames)) {
+        // Safety: We've made sure frames is not empty
+        frame = pop_frame()!;
+        temp_stack = push(frame, temp_stack);
+        res = ph_lookup(frame.vars, callee);
+        if (res != undefined) {
+            if(!Array.isArray(res)){
+
+            }
+            while(!is_empty(temp_stack)) {
+                const temp = top(temp_stack);
+                temp_stack = pop(temp_stack);
+                push_frame(temp);
+            }
+            push_frame(frame);
+            break;
+        }
+    }
+    const binding: Binding | undefined = res
+    if (!Array.isArray(binding)) {
+        throw new UntypescriptError(
+            ErrorKind.RuntimeError,
+            `Expected to find function bound to identifier, instead found ${typeof binding}`,
+            call.index
+        );
+    }
+    // finds the functionBinding in the array of bindings to the 
+    // callee name that match the number of args given
+    const match = binding.find(fn => fn.params.length === call.args.length);
+    
+    if (!match) {
+        throw new UntypescriptError(
+            ErrorKind.RuntimeError,
+            `No overload of '${callee}' matches ${call.args.length} arguments`,
+            call.index
+        );
+    }
+    enter_frame(null);
+    for(let i = 0; i < call.args.length; i++){
+        let args_binding: VariableBinding = {
+            type: "Variable_Binding",
+            value: evaluate(call.args[i])
+        };
+        ph_insert(top(frames).vars, match.params[i], args_binding)
+    }
+    let return_value: Value = null;
+    for (let i = 0; i < match.body.body.length; i += 1) {
+        return_value = interpret(match.body.body[i]);
+        if (should_return != false) {
+            should_break = false;
+            break;
+        }
+    }
+    exit_frame();
+    return return_value
+}
+
+
+
 
 function pop_frame(): Frame | undefined {
     if (is_empty(frames)) {

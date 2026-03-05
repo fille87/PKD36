@@ -1,11 +1,6 @@
 import { ProbingHashtable } from "./hashtables";
-<<<<<<< HEAD
-import {list, List} from "./list"
-import { NonEmptyStack, Stack } from "./stack";
-=======
 import {list, List, Pair} from "./list"
 import { NonEmptyStack } from "./stack";
->>>>>>> origin/main
 import { Token, TokenType } from "../src/scanner"
 
 export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "**";
@@ -61,7 +56,7 @@ export type Frame = {
 }
 export type Environment = NonEmptyStack<Frame>;
 // export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
-export type Binding = VariableBinding | FunctionBinding | Uninitialized;
+export type Binding = VariableBinding | FunctionBinding[] | Uninitialized;
 
 // export type ExpressionBinding = {
 //     type: "Expression_Binding",
@@ -77,12 +72,9 @@ export type Uninitialized = {
     type: "Uninitialized",
 }
 
-
-
 export type FunctionBinding = {
     type: "Function_Binding",
-    params: string[], // when called combine with call 
-                    //arguments(Value) to make Variebles(name:value) pairs
+    params: string[],
     body: Block,
 }
 
@@ -92,14 +84,8 @@ export type FunctionBinding = {
 export type Operation = Unary | Binary;
 
 
-<<<<<<< HEAD
-export type Expression = Literal | Unary | Binary | Grouping 
-            | Block | Identifier | Assignment | If | Logic | Call | While;
-export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
-=======
 export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While | Break;
->>>>>>> origin/main
 
 export type Declaration = VariableDec | FunctionDec
 
@@ -121,7 +107,7 @@ export type FunctionDec = {
 export type Call = {
         type: "Call",
         index: number,
-        callee: Expression,
+        callee: Variable,
         args: Expression[]
     }
 
@@ -170,12 +156,7 @@ export type ReturnStatement = {
     index: number,
     expression: Expression,
 }
-export type Break = {
-        type: "Break",
-        index: number,
-        loop: string | null,
-        return_expr: Expression | null,
-    }
+
 export type Assignment = {
     type: "Assignment",
     index: number,
@@ -183,8 +164,8 @@ export type Assignment = {
     value: Expression,
 }
 
-export type Identifier = {
-    type: "Identifier",
+export type Variable = {
+    type: "Variable",
     index: number,
     name: string,
 }
