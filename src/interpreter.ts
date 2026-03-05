@@ -31,7 +31,7 @@ import {
     ErrorKind,
     is_error
 } from "./error";
-import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
+import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_delete, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
 import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, display_stack } from "../lib/stack";
 
 // let hadRuntimeError: boolean = false;
@@ -55,6 +55,7 @@ export function interpret_results(res: Array<Expression>): Value {
     for (let i = 0; i < res.length; i += 1) {
         ret_val = interpret(res[i]);
     }
+    console.dir(display_stack(frames), {depth: null})
     return ret_val;
 }
 
@@ -112,7 +113,7 @@ function evaluate(expr: Expression): Value {
         case "If":
             return conditional(expr);
         case "Call":
-            return call(expr)
+            return call(expr);
     }
     return null; //seems neccesary but have to check
 }
@@ -296,7 +297,7 @@ function lookup(expr: {name: string, index: number}): Value {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            push_frame(frame);
+            //push_frame(frame);
             break;
         }
     }
@@ -316,12 +317,14 @@ function lookup(expr: {name: string, index: number}): Value {
 }
 
 function declare(expr: Declaration): void {
-    let frame = pop_frame();
-    if (frame === undefined) {
-        frame = empty_frame();
-    }
+    let frame: Frame | undefined;
     switch(expr.type) {
+        
         case "Variable_declaration":
+            frame = pop_frame();
+            if (frame === undefined) {
+                frame = empty_frame();
+            }
             // Put the frame back before evaluating the initialiser
             push_frame(frame);
             let val: Uninitialized | VariableBinding = expr.initialiser === null
@@ -331,24 +334,31 @@ function declare(expr: Declaration): void {
             frame = pop_frame()!;
             ph_insert(frame.vars, expr.name, val);
             push_frame(frame);
+            return
         case "Function_declaration":
+            frame = pop_frame();
+            if (frame === undefined) {
+                frame = empty_frame();
+            }
             const existing = ph_lookup(frame.vars, expr.name);
-            const function_dec: FunctionDec = expr as FunctionDec;
+            const function_dec: FunctionDec = expr;
             const fn: FunctionBinding = {
                 type: "Function_Binding",
                 params: function_dec.params,
                 body: function_dec.body,
             };
-            // if there already is a variable with the same name overwrite that var
-            if (existing === undefined || !Array.isArray(existing)) {
+            if (existing === undefined) {
                 ph_insert(frame.vars, expr.name, [fn]);
+                push_frame(frame);
                 return;
-            } else {
-                const match = existing.find(fn => 
+            } else if(Array.isArray(existing)) {
+                const match: FunctionBinding | undefined = existing.find(fn => 
                     fn.params.length === function_dec.params.length)
                 // no function with the same name and same number of params
-                if(match !== undefined) {
+                if(match === undefined) {
                     existing.push(fn);
+                    ph_insert(frame.vars, expr.name, existing)
+                    push_frame(frame);
                     return
                 } else {
                     throw new UntypescriptError(
@@ -358,7 +368,11 @@ function declare(expr: Declaration): void {
                 );
             
                 }
-            } 
+            }
+        throw new UntypescriptError(
+            ErrorKind.RuntimeError,
+            "Name is taken by variable",
+            expr.index)
     }
 }
 
@@ -434,19 +448,17 @@ function call(call: Call): Value {
         temp_stack = push(frame, temp_stack);
         res = ph_lookup(frame.vars, callee);
         if (res != undefined) {
-            if(!Array.isArray(res)){
-
-            }
             while(!is_empty(temp_stack)) {
                 const temp = top(temp_stack);
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            push_frame(frame);
+            //push_frame(frame);
             break;
         }
     }
-    const binding: Binding | undefined = res
+    if(res === undefined) throw error;
+    const binding: Binding = res
     if (!Array.isArray(binding)) {
         throw new UntypescriptError(
             ErrorKind.RuntimeError,
@@ -456,7 +468,7 @@ function call(call: Call): Value {
     }
     // finds the functionBinding in the array of bindings to the 
     // callee name that match the number of args given
-    const match = binding.find(fn => fn.params.length === call.args.length);
+    const match: FunctionBinding | undefined = binding.find(fn => fn.params.length === call.args.length);
     
     if (!match) {
         throw new UntypescriptError(
@@ -471,8 +483,11 @@ function call(call: Call): Value {
             type: "Variable_Binding",
             value: evaluate(call.args[i])
         };
-        ph_insert(top(frames).vars, match.params[i], args_binding)
+        const current_frame: Frame = pop_frame() as Frame;
+        ph_insert(current_frame.vars, match.params[i], args_binding)
+        push_frame(current_frame);
     }
+
     let return_value: Value = null;
     for (let i = 0; i < match.body.body.length; i += 1) {
         return_value = interpret(match.body.body[i]);

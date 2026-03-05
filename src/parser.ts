@@ -333,7 +333,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.PLUS, TokenType.MINUS)){
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_factor();
+            const right: Expression  = parse_term();
             return make_binary(operator, term, right, index);
         }
         return term;
@@ -343,7 +343,7 @@ export function parse(tokens: Token[]): Parser {
         while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_unary();
+            const right: Expression  = parse_factor();
             return make_binary(operator, fact, right, index)
         }
         return fact;
