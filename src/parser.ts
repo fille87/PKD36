@@ -75,7 +75,7 @@ export function parse(tokens: Token[]): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index - 1); // TODO: Added -1 since the index was pointing at the next token instead of the one with the issue, make sure this actually works consistently though
+        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index); // TODO: Added -1 since the index was pointing at the next token instead of the one with the issue, make sure this actually works consistently though
     }
 
     // comfirms type of token
@@ -106,7 +106,7 @@ export function parse(tokens: Token[]): Parser {
     }
 
     function parse_while(): Expression {
-        const condition: Expression = parse_expression();
+        const condition: Expression = parse_equality(); // TODO: This is a bugfix to prevent some weird edge cases from being passed as conditions, but does it need to be this restrictive?
         let name : string | null = null // Must be a 
         const index: number = peek().index;
         if(match(TokenType.COLON)){
@@ -270,6 +270,8 @@ export function parse(tokens: Token[]): Parser {
         return parse_assignment();
     }
 
+    // TODO: Might need to hoist this up to earlier since as it is this counts as an expression statement 
+    // and can therefore be used in weird places like while x = 3; {} but won't actually do anything
     function parse_assignment(): Expression {
         const target_token: Token = peek();
         let expr: Expression = parse_logic_or();

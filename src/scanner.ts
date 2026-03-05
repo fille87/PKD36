@@ -29,7 +29,6 @@ type Scanner = {
     errored: boolean;
     input: string;
     input_length: number;
-    output: Array<Token>;
     index: number;
 };
 
@@ -43,7 +42,6 @@ function scanner_init(input: string): Scanner {
         errored: false,
         input,
         input_length: input.length,
-        output: [],
         index: 0,
     }
 }
@@ -108,11 +106,6 @@ export function scan(input: string): ScannerResult {
     // Emits a parse error pointing at a specified index
     function error_at(message: string, index: number) {
         scanner.errored = true;
-        // const error: Error = {
-        //     kind: ErrorKind.ParseError,
-        //     message: message,
-        //     index: index,
-        // };
         const error = new UntypescriptError(ErrorKind.ParseError, message, index);
         errors.push(error);
     }
