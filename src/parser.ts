@@ -90,7 +90,6 @@ export function parse(tokens: Token[]): Parser {
         return false;
     }
 
-    //TODO: Iplement recursive descent parsing
 
     function parse_statement(): Expression {
         if(match(TokenType.VAR)) return parse_var();
@@ -328,26 +327,40 @@ export function parse(tokens: Token[]): Parser {
         }
         return comp;
     }
+
     function parse_term(): Expression {
-        const term: Expression = parse_factor();
-        while(match(TokenType.PLUS, TokenType.MINUS)){
+        const term: Expression = parse_factor(); // Left handside of the expression
+        while(match(TokenType.PLUS, TokenType.MINUS)){ // If plus or minus
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_term();
-            return make_binary(operator, term, right, index);
+            const right: Expression  = parse_term(); // right hand side of the expression
+            return make_binary(operator, term, right, index); // make AST
         }
         return term;
     }
+
     function parse_factor(): Expression {
-        const fact: Expression = parse_unary();
-        while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) {
+        const fact: Expression = parse_exponent(); // Left handside of the expression
+        while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) { // If plus or minus
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_factor();
-            return make_binary(operator, fact, right, index)
+            const right: Expression  = parse_factor(); // right hand side of the expression
+            return make_binary(operator, fact, right, index) // make AST
         }
         return fact;
     }
+    
+    function parse_exponent(): Expression {
+        const base: Expression = parse_unary();
+        while(TokenType.POW) {
+            const index: number = previous().index; 
+            const operator: BinOperator = get_sign(previous()) as BinOperator;
+            const exponent: Expression  = parse_factor();
+            return make_binary(operator, base, exponent, index)
+        }
+        return base;
+    }
+
     function parse_unary(): Expression {
         if(match(TokenType.MINUS, TokenType.BANG)){
             const index: number = previous().index;
@@ -438,7 +451,7 @@ export function parse(tokens: Token[]): Parser {
                 parser.errors.push(e as UntypescriptError);
                 synchronize();
             // } else {
-            //     throw e; // real bug → crash
+            //     throw e;
             // }
         }
     }
