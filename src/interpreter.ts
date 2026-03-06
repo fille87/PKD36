@@ -175,17 +175,6 @@ function isEqual(a: Value, b: Value): boolean {
 // Converts value to type string
 function stringify(value: Value): string {
     if (value == null) return "null";
-
-    /* Don't know if this is neccesary for this implementation
-    if (Object(value) instanceof Number) {
-      let text: string = value.toString();
-      if (text.endsWith(".0")) {
-        text = text.substring(0, text.length - 2);
-      }
-      return text;
-    }
-    */
-
     return value.toString();
 }
 
@@ -240,13 +229,14 @@ function binary(expr: Binary) {
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
         case "+":
-            // Typescript can't deduce that left and right are the same type, so we need two different if conditions
             if (typeof left === "number" && typeof right === "number") {
                 return left + right;
-            } else if (typeof left === "string" && typeof right === "string") {
-                return left + right;
+            } else if (typeof left === "string") {
+                return left + stringify(right);
+            } else if (typeof right === "string") {
+                return stringify(left) + right;
             }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or two strings.", expr.index);
+            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
         case "!=":
             return !isEqual(left, right);
         case "==":
