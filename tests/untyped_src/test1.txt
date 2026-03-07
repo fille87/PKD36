@@ -16,6 +16,8 @@ print if a == 4 {
                     ifA = ifA + 1;
                     print "inside of if loop: "; 
                     print ifA; 
-                    if ifA == 5 {break return 3;};
+                    if ifA == 5 {
+                        break return "loop reached iteration " + ifA;
+                    }
                 };
             };

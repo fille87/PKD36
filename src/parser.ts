@@ -140,15 +140,8 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_break(): Statement {
         const index = peek().index;
-        if (match (TokenType.RETURN)) {
-            const ret_val = parse_return();
-            return {
-                type: "Break",
-                index,
-                label: null,
-                return_expr: ret_val,
-            }
-        }
+        let label: string | null = null;
+        let ret_val: Statement |null = null;
         if(match(TokenType.SEMICOLON)) {
             return {
                 type: "Break",
@@ -157,18 +150,26 @@ export function parse(tokens: Token[]): Parser {
                 return_expr: null,
             };
         }
-        if (match(TokenType.COLON)) {
-            const label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
-            if (match(TokenType.SEMICOLON)) {
-                return {
-                    type: "Break",
-                    index,
-                    label,
-                    return_expr: null,
-                };
-            } else {
-                throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; after break label", peek().index - 1);
+        if (match (TokenType.RETURN)) {
+            ret_val = parse_return();
+            return {
+                type: "Break",
+                index,
+                label: null,
+                return_expr: ret_val,
             }
+        }
+        if (match(TokenType.COLON)) {
+            label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
+            if(match(TokenType.RETURN)) ret_val = parse_return();
+            consume(TokenType.SEMICOLON, "Expected ; after break")
+            return {
+                type: "Break",
+                index,
+                label: label,
+                return_expr: ret_val,
+            }
+       
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
     }
@@ -341,7 +342,7 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_factor(): Expression {
         const fact: Expression = parse_exponent(); // Left handside of the expression
-        while(match(TokenType.TIMES, TokenType.DIVIDE, TokenType.POW)) { // If plus or minus
+        while(match(TokenType.TIMES, TokenType.DIVIDE)) { // If / or *
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const right: Expression  = parse_factor(); // right hand side of the expression
@@ -352,7 +353,7 @@ export function parse(tokens: Token[]): Parser {
     
     function parse_exponent(): Expression {
         const base: Expression = parse_unary();
-        while(TokenType.POW) {
+        while(match(TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const exponent: Expression  = parse_factor();
