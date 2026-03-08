@@ -2,8 +2,15 @@
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
- 
-\title{Untypedscript}
+\usepackage{listings}
+
+\lstset{
+    basicstyle = \footnotesize,
+    frame = single,
+    morekeywords = {switch, case, break, continue, if, else, const, return, while }
+}
+
+\title{Untypescript}
 \author{Group 36
 \\Erwin Hörnell, Felix Svensson, Alexander Thoresson
 \\\\This is our project for PKD 2026}
@@ -49,6 +56,179 @@
 \section{Use cases}
 
 \section{Program documentation}
+
+\subsection{Scanner}
+The first component handles the conversion from a string of text into a sequence of meaningful tokens that the parser can then work with. 
+A string of text can only really be worked with one character at a time, and an untypescript source file consists of various different meaningful units that vary from a single character up to an unlimited length. It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
+By having a first stage where we identify these units and convert them into a uniform data type we don't need to think about this in the later, more complex stages of parsing and interpreting, and can instead work with this token structure as the smallest meaningful unit. In this stage we can also catch the most obvious syntax errors, like unrecognized characters and malformed number literals, and halt execution before doing any more unnecessary work.
+
+\begin{lstlisting}[title = Token]
+export type Token = {
+    type: TokenType,
+    index: number,
+    value: Literal | undefined
+}
+\end{lstlisting}
+The Token type contains information about what type of token it is, at what position in the source it occurred as well as an optional value.
+The token type is an enum containing all the possible meaningful units that untypescript supports. For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field. This contains a Literal, which is simply a number, string or a boolean. 
+
+\newpage
+\begin{lstlisting}[title = Example of token types]
+export enum TokenType = {
+    COMMA, PLUS, MINUS ...
+    RIGHT_PAREN, LEFT_PAREN ...
+    NUMBER_LIT, STRING_LIT, IDENTIFIER
+}
+\end{lstlisting}
+The interface to the scanner looks like this:
+\begin{lstlisting}[frame = none]
+function scan(input: string): Array<Token> | Array<UntypescriptError>
+\end{lstlisting}
+where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. We could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
+
+\begin{lstlisting}[title = Internal state representation of the scanner]
+type Scanner = {
+    errored: boolean;
+    input: string;
+    input_length: number;
+    index: number;
+}
+\end{lstlisting}
+The scanner works by initializing with an index of 0. We then peek at the character at that index, and pass this into a big switch statement.
+
+For simple single character tokens, we can simply output the corresponding token and move on:
+\begin{lstlisting}
+switch (ch) {
+    case ",":
+        output.push(make_token(TokenType.COMMA));
+        break;
+\end{lstlisting}
+For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead:
+\begin{lstlisting}
+    case "=":
+        if (peek(1) === "=") {
+            output.push(make_token(TokenType.DOUBLE_EQUAL));
+            advance();
+        } else {
+            output.push(make_token(TokenType.EQUAL));
+        }
+        break;
+\end{lstlisting}
+\break
+If we match a quotation mark, we try to scan a string literal which simply ends at the next quotation mark. We could have made separate syntax for multi line strings, but just allowing simple string literals to span multiple lines was the simplest solution both to implement as well as to use.
+\begin{lstlisting}
+    case '"':
+        const s = scan_string();
+        ...
+\end{lstlisting}
+
+Finally, we end up in the default case:
+\begin{lstlisting}
+    default:
+        if (is_whitespace(ch)) {
+            break;
+        } else if (is_digit(ch)) {
+            const n = scan_number();
+            ...
+        } else if (is_letter(ch) || ch == "_") {
+            const ident = scan_identifier();
+            const keyword = ph_lookup(keywords, 
+                                      ident.value as string);
+            output.push(
+                keyword !== undefined 
+                    ? token(ident.index, keyword) 
+                    : ident
+            );
+            continue;
+            ...
+        } else {
+            error(...)
+            skip_line = true;
+        }
+\end{lstlisting}
+We first check if the character is whitespace, in which case we can ignore it. This includes line breaks, tabs and spaces.
+
+If the character is a digit we try to scan a number literal and if it is a letter or underscore we try to scan an identifier. If we still can't match it, we output a syntax error and skip the rest of the line. 
+
+The reason we skip the line is because if we encounter a syntax error the rest of the line is likely to be invalid as well, and by skipping to the next line we make sure not to spam the user with meaningless errors. This is done simply by setting a flag that, if set, at the beginning of the loop will simply keep advancing the scanner to the next character until we either hit the end of file or a newline character.
+
+After the switch statement we advance to the next character and loop back around. If we hit the end of file we check if there were any errors and return these or the successful tokens accordingly:
+\begin{lstlisting}
+    case "\0":
+        if (!scanner.errored) {
+            output.push(make_token(TokenType.EOF));
+            return output;
+        } else {
+            return errors;
+        }
+\end{lstlisting}
+
+For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these.
+
+\begin{lstlisting}[title = scan\_number]
+    const start = scanner.index;
+    while(is_digit(peek())) {
+        advance();
+    }
+    if(peek() === ".") {
+        if (!is_digit(peek(1))) {
+            // Emit a syntax error and skip the rest of the line
+        }
+        advance();
+    }
+    while(is_digit(peek())) {
+        advance();
+    }
+
+    return token(
+        start,
+        TokenType.NUMBER_LIT, 
+        Number(scanner.input.substring(start, scanner.index))
+    );
+\end{lstlisting}
+A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we peek at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
+
+In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
+
+If the character after the dot is a digit, we simply keep advancing until we hit something else. We then use the built in Number parsing constructor to parse the substring between start and end index into a number.
+
+\begin{lstlisting}[title = scan\_identifier]
+    const start = scanner.index;
+    while(is_letter(peek()) 
+          || is_digit(peek()) 
+          || peek() == "_") {
+        advance();
+    }
+
+    return token(
+        start,
+        TokenType.IDENTIFIER,
+        scanner.input.substring(start, scanner.index)
+    );
+\end{lstlisting}
+The identifier scanning is a bit simpler, since we just advance while the character is one of the ones that we support in our identifier names (letters, numbers and underscores).
+This is also how we handle keywords like if and else: after scanning an identifier we do a hash table lookup against a table of keywords. If there's a match, we output the corresponding token instead. We could have handled this separately in the switch statement, like so:
+\begin{lstlisting}[frame = none]
+case "f":
+    switch (peek(1)) {
+        case "n":
+            // fn keyword
+        case "a":
+            // keep checking for 'false'
+        ...
+\end{lstlisting}
+However, not only would this end up with a very messy switch statement, it would also not let the user use identifiers that start with a keyword. For instance, 'var' is a keyword in untypescript for function declarations, but this would also disallow identifiers like 'variable' from being used. You could do even more checks inside the different cases to fix this, but the simpler approach is simply to scan as long of an identifier as we can, and then check if it matches one of the keywords.
+
+\begin{lstlisting}[title = keywords hashtable]
+const keywords: ProbingHashtable<string, TokenType> = 
+        ph_empty(15, (word) => word.charCodeAt(0));
+
+    ph_insert(keywords, "and", TokenType.AND);
+    ph_insert(keywords, "or", TokenType.OR);
+    ph_insert(keywords, "if", TokenType.IF);
+    ...
+\end{lstlisting}
+The reason we use a hashtable for the keywords is that it gives us an easy way to look up a string and get back a corresponding token. As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
 
 \section{Discussion}
 
