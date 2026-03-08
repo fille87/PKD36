@@ -60,7 +60,6 @@ export function interpret_results(res: Array<Expression | Statement>): Value {
 
 // Runs the interpreter
 export function interpret(expr: Expression | Statement): Value { 
-
     switch (expr.type) {
         case "Return":
             should_return = true;
@@ -70,9 +69,6 @@ export function interpret(expr: Expression | Statement): Value {
             return null;
         case "Expression_statement":
             evaluate(expr.expression);
-            return null;
-        case "Assignment":
-            assign(expr);
             return null;
         case "Variable_declaration":
             declare(expr as Declaration);
@@ -111,6 +107,8 @@ function evaluate(expr: Expression): Value {
             return conditional(expr);
         case "Call":
             return call(expr);
+        case "Assignment":
+            return assign(expr);
     }
     return null; //seems neccesary but have to check
 }
@@ -389,15 +387,17 @@ function assign(expr: Assignment) {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            return;
+            return binding.value;
         } else {
             temp_stack = push(frame, temp_stack);
         }
     }
+    return null;
 }
 
 function loop(expr: While): Value | null {
     let return_value: Value | null = null;
+    enter_frame(expr.name);
     while(is_truthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
         if (should_break != false) {
@@ -408,10 +408,11 @@ function loop(expr: While): Value | null {
             if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
-             //pop_frame();
+            pop_frame();
             return return_value;
         }
     }
+    exit_frame();
     return return_value;
 }
 

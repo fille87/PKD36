@@ -108,7 +108,6 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_while(): Expression {
         const condition: Expression = parse_expression();
-        console.log(condition);
         let name : string | null = null // Must be a 
         const index: number = peek().index;
         if(match(TokenType.COLON)){
