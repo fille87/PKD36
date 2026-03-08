@@ -461,6 +461,7 @@ export function parse(tokens: Array<Token>): Parser {
         } catch (e) {
             parser.has_error = true
             parser.errors.push(e as UntypescriptError);
+            parser.has_error = true;
             synchronize();
         }
     }
