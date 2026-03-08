@@ -459,6 +459,7 @@ export function parse(tokens: Array<Token>): Parser {
             const statement = parse_statement();
             parser.output.push(statement);
         } catch (e) {
+            parser.has_error = true
             parser.errors.push(e as UntypescriptError);
             synchronize();
         }
