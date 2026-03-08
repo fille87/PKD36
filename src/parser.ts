@@ -140,7 +140,7 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_break(): Statement {
-        const index = peek().index;
+        let index = peek().index;
         let label: string | null = null;
         let ret_val: Expression |null = null;
         if(match(TokenType.SEMICOLON)) {
@@ -161,15 +161,26 @@ export function parse(tokens: Array<Token>): Parser {
             }
         }
         if (match(TokenType.COLON)) {
+            index = peek().index;
             label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
-            if(match(TokenType.RETURN)) ret_val = (parse_return() as ReturnStatement).expression;
-            return {
-                type: "Break",
-                index,
-                label: label,
-                return_expr: ret_val,
+            if(match(TokenType.SEMICOLON)) {
+                return {
+                    type: "Break",
+                    index,
+                    label,
+                    return_expr: null,
+                };
             }
-       
+            if(match(TokenType.RETURN)) {
+                ret_val = (parse_return() as ReturnStatement).expression;
+                return {
+                    type: "Break",
+                    index,
+                    label: label,
+                    return_expr: ret_val,
+                }
+            }
+            throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or return statement after label" , index);
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
     }
