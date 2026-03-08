@@ -18,7 +18,8 @@ import {
     Break,
     If,
     Call,
-    FunctionBinding
+    FunctionBinding,
+    Logic
 } from"../lib/types";
 
 import {
@@ -97,6 +98,8 @@ function evaluate(expr: Expression): Value {
             return unary(expr);
         case "Binary":
             return binary(expr);
+        case "Logic":
+            return logic(expr);
         case "Block":
             return block(expr);
         case "While":
@@ -237,6 +240,17 @@ function binary(expr: Binary) {
             return !isEqual(left, right);
         case "==":
             return isEqual(left, right);
+    }
+}
+
+function logic(expr: Logic): boolean {
+    const left: Value | null = evaluate(expr.left);
+    const right: Value | null = evaluate(expr.right); 
+    switch (expr.operator) {
+        case "or":
+            return is_truthy(left) || is_truthy(right);
+        case "and":
+            return is_truthy(left) && is_truthy(right);
     }
 }
 

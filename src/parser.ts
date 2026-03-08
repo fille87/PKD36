@@ -298,7 +298,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_logic_and();
         while(match(TokenType.OR)){
             const index: number = previous().index
-            const right: Expression = parse_logic_or();
+            const right: Expression = parse_logic_and();
             expr = make_logic(expr, "or", right, index);
         }
         return expr;
@@ -307,64 +307,64 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_equality();
         while(match(TokenType.AND)){
             const index: number = previous().index
-            const right: Expression = parse_logic_and();
+            const right: Expression = parse_equality();
             expr = make_logic(expr, "and", right, index);
         }
         return expr;
     }
     
     function parse_equality(): Expression {
-        const equal: Expression = parse_comparison();
+        let equal: Expression = parse_comparison();
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_equality();
-            return make_binary(operator, equal, right, index);
+            const right: Expression = parse_comparison();
+            equal = make_binary(operator, equal, right, index);
         }
         return equal;
     }
     function parse_comparison(): Expression {
-        const comp: Expression = parse_term();
+        let comp: Expression = parse_term();
         while(match(TokenType.LESS, TokenType.LESS_EQ,
                     TokenType.GREATER, TokenType.GREATER_EQ)) {
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_comparison()
+            const right: Expression = parse_term();
 
-            return make_binary(operator, comp, right, index);
+            comp = make_binary(operator, comp, right, index);
         }
         return comp;
     }
 
     function parse_term(): Expression {
-        const term: Expression = parse_factor(); // Left handside of the expression
+        let term: Expression = parse_factor(); // Left handside of the expression
         while(match(TokenType.PLUS, TokenType.MINUS)){ // If plus or minus
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_term(); // right hand side of the expression
-            return make_binary(operator, term, right, index); // make AST
+            const right: Expression  = parse_factor(); // right hand side of the expression
+            term = make_binary(operator, term, right, index); // make AST
         }
         return term;
     }
 
     function parse_factor(): Expression {
-        const fact: Expression = parse_exponent(); // Left handside of the expression
+        let fact: Expression = parse_exponent(); // Left handside of the expression
         while(match(TokenType.TIMES, TokenType.DIVIDE)) { // If / or *
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_factor(); // right hand side of the expression
-            return make_binary(operator, fact, right, index) // make AST
+            const right: Expression  = parse_exponent(); // right hand side of the expression
+            fact = make_binary(operator, fact, right, index) // make AST
         }
         return fact;
     }
     
     function parse_exponent(): Expression {
-        const base: Expression = parse_unary();
+        let base: Expression = parse_unary();
         while(match(TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const exponent: Expression  = parse_exponent();
-            return make_binary(operator, base, exponent, index)
+            const exponent: Expression  = parse_unary();
+            base = make_binary(operator, base, exponent, index)
         }
         return base;
     }
