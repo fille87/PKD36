@@ -1,0 +1,18 @@
+\begin{algorithm}
+\caption{parse\_factor}
+\KwResult{An expression AST node}
+
+$fact \gets$ parse\_exponent()\;
+
+\While{next token is $*$, or $/$}{
+    $index \gets$ previous token index\;
+    $operator \gets$ sign(previous token)\;
+
+    $right \gets$ parse\_factor()\;
+
+    \Return make\_binary($operator$, $fact$, $right$, $index$)\;
+}
+
+\Return $fact$\;
+
+\end{algorithm}
