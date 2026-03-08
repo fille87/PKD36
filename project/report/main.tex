@@ -68,9 +68,10 @@ export type Token = {
     index: number,
     value: Literal | undefined
 }
+type Literal = number | string;
 \end{lstlisting}
 The Token type contains information about what type of token it is, at what position in the source it occurred as well as an optional value.
-The token type is an enum containing all the possible meaningful units that untypescript supports. For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field. This contains a Literal, which is simply a number, string or a boolean. 
+The token type is an enum containing all the possible meaningful units that untypescript supports. For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field. This contains a Literal, which is simply a number or string. 
 
 \newpage
 \begin{lstlisting}[title = Example of token types]
