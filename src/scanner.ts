@@ -31,9 +31,9 @@ export function token_length(token?: Token): number {
         case TokenType.STRING_LIT:
         case TokenType.NUMBER_LIT:
         case TokenType.IDENTIFIER:
-            return get_sign(token)!.toString().length; // Safety: Any unhandled cases already throw an error
+            return token.value!.toString().length // Safety: These token types always have a value
         default:
-            return token.value!.toString().length // Safety: We already return early if value is undefined
+            return get_sign(token)!.toString().length; // Safety: Any unhandled cases already throw an error
     }
 }
 
