@@ -60,12 +60,11 @@ export function interpret_results(res: Array<Expression>): Value {
 
 // Runs the interpreter
 export function interpret(expr: Expression): Value { 
+
     switch (expr.type) {
         case "Return":
             should_return = true;
-            return expr.expression != null
-                ? interpret(expr.expression)
-                : null
+            return interpret(expr.expression);
         case "Print":
             console.log(interpret(expr.expression));
             return null;
@@ -94,6 +93,7 @@ export function interpret(expr: Expression): Value {
 
 // Evaluates the given expression
 function evaluate(expr: Expression): Value {
+
     switch (expr.type) {
         case "Literal":
             return literal(expr);
@@ -249,7 +249,8 @@ function block(block: Block): Value | null {
     enter_frame(null);
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
-        if (should_break != false) {
+        if (should_break === true || typeof should_break === "string" || should_return) {
+            should_return = false;
             break;
         }
     }
@@ -409,7 +410,7 @@ function loop(expr: While): Value | null {
             if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
-            pop_frame();
+             //pop_frame();
             return return_value;
         }
     }
@@ -481,7 +482,7 @@ function call(call: Call): Value {
     for (let i = 0; i < match.body.body.length; i += 1) {
         return_value = interpret(match.body.body[i]);
         if (should_return != false) {
-            should_break = false;
+            should_return = false;
             break;
         }
     }
@@ -531,5 +532,5 @@ function empty_frame(): Frame {
 }
 
 function break_loop(expr: Break) {
-    should_break = expr.label != undefined ? expr.label : true;
+    should_break = expr.label == null ? true : expr.label;
 }

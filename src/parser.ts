@@ -8,6 +8,7 @@ import {
     Block,
     Break,
     Variable,
+    ReturnStatement,
 } from"../lib/types";
 import {
     TokenType,
@@ -141,7 +142,7 @@ export function parse(tokens: Token[]): Parser {
     function parse_break(): Statement {
         const index = peek().index;
         let label: string | null = null;
-        let ret_val: Statement |null = null;
+        let ret_val: Expression |null = null;
         if(match(TokenType.SEMICOLON)) {
             return {
                 type: "Break",
@@ -151,7 +152,7 @@ export function parse(tokens: Token[]): Parser {
             };
         }
         if (match (TokenType.RETURN)) {
-            ret_val = parse_return();
+            ret_val = (parse_return() as ReturnStatement).expression;
             return {
                 type: "Break",
                 index,
@@ -161,8 +162,7 @@ export function parse(tokens: Token[]): Parser {
         }
         if (match(TokenType.COLON)) {
             label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
-            if(match(TokenType.RETURN)) ret_val = parse_return();
-            consume(TokenType.SEMICOLON, "Expected ; after break")
+            if(match(TokenType.RETURN)) ret_val = (parse_return() as ReturnStatement).expression;
             return {
                 type: "Break",
                 index,
