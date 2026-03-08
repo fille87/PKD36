@@ -50,6 +50,36 @@ describe("Interpret binary operators", () => {
     });
 });
 
+describe("Order of operations", () => {
+    test("Addition and multiplication", () => {
+        const s = "1 + 1 * 2";
+        expect(interpret_source("test", s)).toBe(3);
+    });
+    test("Multiplication and exponentiation", () => {
+        const s = "2 * 3 ** 2";
+        expect(interpret_source("test", s)).toBe(18);
+    });
+});
+
+describe("Chained binary operations", () => {
+    test("Addition", () => {
+        const s = "1 + 1 + 1";
+        expect(interpret_source("test", s)).toBe(3);
+    });
+    test("Subtraction", () => {
+        const s = "1 - 1 - 1";
+        expect(interpret_source("test", s)).toBe(-1);
+    });
+    test("Multiplication", () => {
+        const s = "2 * 2 * 2";
+        expect(interpret_source("test", s)).toBe(8);
+    });
+    test("Exponentiation", () => {
+        const s = "2 ** 3 ** 4";
+        expect(interpret_source("test", s)).toBe(4096);
+    });
+});
+
 describe("Interpret unary operators", () => {
     test("Interpret minus", () => {
         const s = "-1";
