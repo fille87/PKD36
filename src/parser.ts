@@ -298,7 +298,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_logic_and();
         while(match(TokenType.OR)){
             const index: number = previous().index
-            const right: Expression = parse_logic_and();
+            const right: Expression = parse_logic_or();
             expr = make_logic(expr, "or", right, index);
         }
         return expr;
@@ -307,7 +307,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_equality();
         while(match(TokenType.AND)){
             const index: number = previous().index
-            const right: Expression = parse_equality();
+            const right: Expression = parse_logic_and();
             expr = make_logic(expr, "and", right, index);
         }
         return expr;
@@ -318,7 +318,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_comparison();
+            const right: Expression = parse_equality();
             return make_binary(operator, equal, right, index);
         }
         return equal;
@@ -329,7 +329,7 @@ export function parse(tokens: Array<Token>): Parser {
                     TokenType.GREATER, TokenType.GREATER_EQ)) {
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_term()
+            const right: Expression = parse_comparison()
 
             return make_binary(operator, comp, right, index);
         }

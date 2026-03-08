@@ -1,6 +1,6 @@
 \begin{grammar}
 
-<Program> ::= <Statement>*
+<Program> ::= (<Statement> | <Block>)* <Expression>?
 
 <Statement> ::= <VarDecl>
               \alt <FunctionDecl>
@@ -24,6 +24,7 @@
 <Expression> ::= <WhileExpr>
                \alt <LoopExpr>
                \alt <IfExpr>
+               \alt <Block>
                \alt <Assignment>
 
 <WhileExpr> ::= "while" <Expression> (":" IDENTIFIER)? <Block>
@@ -32,26 +33,33 @@
 
 <IfExpr> ::= "if" <Expression> <Expression> ("else" <Expression>)?
 
-<BreakStmt> ::= "break" ";"
-              \alt "break" ":" IDENTIFIER ";"
-              \alt "break" "return" <Expression> ";"
+<BreakStmt> ::= "break" (: IDENTIFIER)? ("return" <Expression>)? ";"
 
-<Assignment> ::= IDENTIFIER "=" <Expression> ";"
+<Block> ::= "{" (<Statement> | <Block>)* <Expression>? "}"
+
+<Assignment> ::= IDENTIFIER "=" <Expression>
                \alt <LogicOr>
 
-<LogicOr> ::= <LogicAnd> ("or" <LogicAnd>)*
+<LogicOr> ::= <LogicAnd> "or" <LogicOr>
+            \alt <LogicAnd>
 
-<LogicAnd> ::= <Equality> ("and" <Equality>)*
+<LogicAnd> ::= <Equality> "and" <LogicAnd>
+            \alt <Equality>
 
-<Equality> ::= <Comparison> (("==" | "!=") <Comparison>)*
+<Equality> ::= <Comparison> ("==" | "!=") <Equality>
+            \alt <Comparison>
 
-<Comparison> ::= <Term> (("<" | "<=" | ">" | ">=") <Term>)*
+<Comparison> ::= <Term> ("<" | "<=" | ">" | ">=") <Comparison>
+            \alt <Term>
 
-<Term> ::= <Factor> (("+" | "-") <Factor>)*
+<Term> ::= <Factor> ("+" | "-") <Term>
+            \alt <Factor>
 
-<Factor> ::= <Exponent> (("*" | "/") <Exponent>)*
+<Factor> ::= <Exponent> ("*" | "/") <Factor>
+            \alt <Exponent>
 
-<Exponent> ::= <Unary> ("^" <Unary>)*
+<Exponent> ::= <Unary> "**" <Exponent>
+            \alt <Unary>
 
 <Unary> ::= ("-" | "!") <Unary>
           \alt <Call>
@@ -67,8 +75,6 @@
             \alt "null"
             \alt IDENTIFIER
             \alt "(" <Expression> ")"
-
-<Block> ::= "{" <Statement>* "}"
 
 
 \end{grammar}

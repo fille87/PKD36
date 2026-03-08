@@ -91,7 +91,8 @@ Individual tokens cannot be interpreted in isolation, as their meaning often dep
 
 The terminals of this grammar consist of keywords, literals, identifiers, braces, parentheses, commas, colons, semicolons, and operators. The grammar was partially designed before implementation began and served as a guide during development. As the parser was implemented, additional rules were refined and incorporated into the grammar.
 
-An important architectural feature of the grammar is the hierarchical structure of expressions. Higher-level expressions produce lower-precedence expressions followed by repeated operator–expression patterns such as \texttt{( )*}. This structure naturally enforces operator precedence and associativity in the language.
+An important architectural feature of the grammar is the hierarchical structure of expressions. 
+Higher-level expressions produce either a single lower-precedence expressions or a recursive structure with a lower-precedence expression and itself, such as \texttt{<Term> = <Factor> (+|-) <Term>}. This structure naturally enforces operator precedence and associativity in the language as well as allows for arbitrary amounts of operator chaining.
 
 \subsubsection{Recursive Descent Parsing}
 
