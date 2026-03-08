@@ -1,13 +1,9 @@
 import {
-    Expression, Literal, Unary, Binary, Operation, Operator, Value,
+    Expression, Literal, Unary, Binary, Value,
     Grouping,
-    UnaOperator,
-    BinOperator,
     Statement,
-    get_sign,
     Block,
     Assignment,
-    VariableDec,
     Declaration,
     FunctionDec,
     Frame,
@@ -21,29 +17,14 @@ import {
     FunctionBinding,
     Logic
 } from"../lib/types";
-
-import {
-    Token,
-    TokenType
-} from "./scanner";
-
 import {
     UntypescriptError,
     ErrorKind,
-    is_error
+    error_with_length,
 } from "./error";
-import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_delete, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
-import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, display_stack } from "../lib/stack";
+import { ph_empty, ph_insert, ph_lookup } from "../lib/hashtables";
+import { Stack, empty as empty_stack, push, top, pop, is_empty } from "../lib/stack";
 
-// let hadRuntimeError: boolean = false;
-
-// function runtimeError(RunError: string) {
-//     // console.log(RunError.getMessage() +
-//     //     "\n[line " + RunError.token.line + "]");
-//     hadRuntimeError = true;
-//     throw new
-//   }
-//
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
 const GLOBALS: Frame = empty_frame();
@@ -279,7 +260,7 @@ function conditional(expr: If): Value | null {
 }
 
 function lookup(expr: {name: string, index: number}): Value {
-    const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
+    const error = error_with_length(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index, expr.name.length);
     if (is_empty(frames)) {
         throw error;
     }

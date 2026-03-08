@@ -55,9 +55,17 @@ describe("Interpret unary operators", () => {
         const s = "-1";
         expect(interpret_source("test", s)).toBe(-1);
     });
+    test("Interpret multiple minuses", () => {
+        const s = "---1";
+        expect(interpret_source("test", s)).toBe(-1);
+    });
     test("Interpret bang", () => {
         const s = "!true";
         expect(interpret_source("test", s)).toBe(false);
+    });
+    test("Interpret multiple bangs", () => {
+        const s = "!!true";
+        expect(interpret_source("test", s)).toBe(true);
     });
 });
 
@@ -81,6 +89,10 @@ describe("Loops", () => {
     test("Labeled break with return value", () => {
         const s = "loop: a { loop: b { break: a return 5; } 3 }";
         expect(interpret_source("test", s)).toBe(5);
+    });
+    test("Block as while condition", () => {
+        const s = "var x = 0; while { x = x + 1; x <= 10 } { x }";
+        expect(interpret_source("test", s)).toBe(10);
     });
 });
 

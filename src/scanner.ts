@@ -1,5 +1,6 @@
-import { UntypescriptError, ErrorKind } from "./error";
+import { UntypescriptError, ErrorKind, syntax_error } from "./error";
 import { ph_lookup, ph_empty, ph_insert, ProbingHashtable } from "../lib/hashtables";
+import { get_sign } from "../lib/types";
 
 export enum TokenType {
     COMMA, PLUS, MINUS, TIMES, POW, DIVIDE,
@@ -21,6 +22,20 @@ export type Token = {
 type Literal = number | string;
 
 type ScannerResult = Array<Token> | Array<UntypescriptError>;
+
+export function token_length(token?: Token): number {
+    if (token === undefined) {
+        return 1;
+    }
+    switch (token.type) {
+        case TokenType.STRING_LIT:
+        case TokenType.NUMBER_LIT:
+        case TokenType.IDENTIFIER:
+            return get_sign(token)!.toString().length; // Safety: Any unhandled cases already throw an error
+        default:
+            return token.value!.toString().length // Safety: We already return early if value is undefined
+    }
+}
 
 // A string with length 1
 type Character = string; 

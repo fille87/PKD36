@@ -12,12 +12,15 @@ import {
 } from"../lib/types";
 import {
     TokenType,
-    Token
+    Token,
+    token_length,
 } from "./scanner"
 import {
     UntypescriptError,
+    error_with_length,
     ErrorKind,
     has_errors,
+    error_with_token,
 } from "./error";
 
 //class ParseError extends globalThis.Error {}
@@ -79,7 +82,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index);
+        throw error_with_length(ErrorKind.MissingToken, message, peek().index, token_length(peek()));
     }
 
     // comfirms type of token
@@ -95,7 +98,8 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_statement(): Expression | Statement {
         if (parser.latest_was_expression) {
-            throw new UntypescriptError(ErrorKind.SyntaxError, "Bare expression must be the last line of a program or block", previous().index);
+            // throw new UntypescriptError(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", peek().index);
+            throw error_with_token(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", previous());
         }
         parser.latest_was_expression = false;
         if(match(TokenType.VAR)) return parse_var();
@@ -132,7 +136,7 @@ export function parse(tokens: Array<Token>): Parser {
             body.label = name;
             return make_while(condition, body, name, peek().index)
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
+        throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
     }
 
     function parse_loop(): Expression {
@@ -148,7 +152,7 @@ export function parse(tokens: Array<Token>): Parser {
             const body: Block = parse_block() as Block;
             return make_while(condition, body, name, index)
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index);
+        throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
     }
 
     function parse_break(): Statement {
@@ -186,17 +190,6 @@ export function parse(tokens: Array<Token>): Parser {
         return make_print(expr, index);
     }
 
-    // function parse_expr_stmt(): Statement {
-    //     const index: number = peek().index;
-    //     const expr: Expression = parse_expression();
-    //     if (peek().type === TokenType.SEMICOLON) {
-    //         advance();
-    //         return make_expression_statement(expr, index);
-    //     }
-    //     return expr;
-    //     // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
-    // }
-    //
     function parse_var(): Statement {
         const index: number = previous().index
         const name: string = consume(
@@ -231,8 +224,7 @@ export function parse(tokens: Array<Token>): Parser {
             return make_fn(name, parameters, body, index);
         }
 
-        throw new UntypescriptError(
-            ErrorKind.MissingToken, "Expected body after function head", peek().index,)
+        throw error_with_token(ErrorKind.MissingToken, "Expected body after function head", peek());
     }
 
     function parse_return(): Statement {
@@ -289,7 +281,7 @@ export function parse(tokens: Array<Token>): Parser {
             if(expr.type === "Variable") {
                 return make_assignment(expr.name, value, expr.index);
             }
-            throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
+            throw error_with_token(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token);
         }
         return expr;
     }
@@ -429,6 +421,7 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function synchronize(): void {
+        parser.latest_was_expression = false;
         advance();
 
         while (!at_end()) {
