@@ -24,6 +24,7 @@ import {
 
 
 export type Parser = {
+    latest_was_expression: boolean;
     input: Array<Token>,
     output: Array<Expression | Statement>,
     errors: Array<UntypescriptError>,
@@ -50,6 +51,7 @@ export function parse(tokens: Array<Token>): Parser {
         errors: [],
         has_error: false,
         current: 0,
+        latest_was_expression: false,
         end: tokens.length - 1
     }
     function at_end(): boolean{
@@ -77,7 +79,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index); // TODO: Added -1 since the index was pointing at the next token instead of the one with the issue, make sure this actually works consistently though
+        throw new UntypescriptError(ErrorKind.MissingToken, message, peek().index);
     }
 
     // comfirms type of token
@@ -91,8 +93,11 @@ export function parse(tokens: Array<Token>): Parser {
         return false;
     }
 
-
     function parse_statement(): Expression | Statement {
+        if (parser.latest_was_expression) {
+            throw new UntypescriptError(ErrorKind.SyntaxError, "Bare expression must be the last line of a program or block", previous().index);
+        }
+        parser.latest_was_expression = false;
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
@@ -101,7 +106,15 @@ export function parse(tokens: Array<Token>): Parser {
         const expr = parse_expression();
         if (peek().type === TokenType.SEMICOLON) {
             advance();
+            parser.latest_was_expression = false;
             return make_expression_statement(expr, expr.index);
+        }
+        switch (expr.type) {
+            case "Block":
+            case "While":
+                break;
+            default:
+                parser.latest_was_expression = true;
         }
         return expr;
     }
@@ -109,7 +122,6 @@ export function parse(tokens: Array<Token>): Parser {
     function parse_while(): Expression {
         const condition: Expression = parse_expression();
         let name : string | null = null // Must be a 
-        const index: number = peek().index;
         if(match(TokenType.COLON)){
             name = get_sign(consume(
                     TokenType.IDENTIFIER, 
@@ -118,7 +130,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
             body.label = name;
-            return make_while(condition, body, name, index)
+            return make_while(condition, body, name, peek().index)
         }
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected block after while", peek().index)
     }
@@ -231,6 +243,10 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_expression(): Expression {
+        if(match(TokenType.WHILE)) return parse_while();
+        if(match(TokenType.LOOP)) return parse_loop();
+        if(match(TokenType.LEFT_BRACE)) return parse_block();
+        if(match(TokenType.IF)) return parse_if();
         const expr: Expression = parse_assignment();
         return expr;
     }
@@ -248,15 +264,23 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_block(): Expression {
         const body: Array<Expression | Statement> = []
+        parser.latest_was_expression = false;
         while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
-            body.push(parse_statement());
+            // We need to catch errors inside of here so we can synchronize and exit the block gracefully
+            try {
+                body.push(parse_statement());
+            } catch (e) {
+                parser.has_error = true
+                parser.latest_was_expression = false;
+                parser.errors.push(e as UntypescriptError);
+                synchronize();
+            }
         }
         consume(TokenType.RIGHT_BRACE, "Expected } after block");
+        parser.latest_was_expression = false;
         return make_block(body, previous().index)
     }
 
-    // TODO: Might need to hoist this up to earlier since as it is this counts as an expression statement 
-    // and can therefore be used in weird places like while x = 3; {} but won't actually do anything
     function parse_assignment(): Expression {
         const target_token: Token = peek();
         let expr: Expression = parse_logic_or();
@@ -274,7 +298,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_logic_and();
         while(match(TokenType.OR)){
             const index: number = previous().index
-            const right: Expression = parse_expression();
+            const right: Expression = parse_logic_and();
             expr = make_logic(expr, "or", right, index);
         }
         return expr;
@@ -283,7 +307,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_equality();
         while(match(TokenType.AND)){
             const index: number = previous().index
-            const right: Expression = parse_expression();
+            const right: Expression = parse_equality();
             expr = make_logic(expr, "and", right, index);
         }
         return expr;
@@ -294,7 +318,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_expression();
+            const right: Expression = parse_comparison();
             return make_binary(operator, equal, right, index);
         }
         return equal;
@@ -305,7 +329,7 @@ export function parse(tokens: Array<Token>): Parser {
                     TokenType.GREATER, TokenType.GREATER_EQ)) {
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_expression()
+            const right: Expression = parse_term()
 
             return make_binary(operator, comp, right, index);
         }
@@ -317,7 +341,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.PLUS, TokenType.MINUS)){ // If plus or minus
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_expression(); // right hand side of the expression
+            const right: Expression  = parse_term(); // right hand side of the expression
             return make_binary(operator, term, right, index); // make AST
         }
         return term;
@@ -328,7 +352,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.TIMES, TokenType.DIVIDE)) { // If / or *
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_expression(); // right hand side of the expression
+            const right: Expression  = parse_factor(); // right hand side of the expression
             return make_binary(operator, fact, right, index) // make AST
         }
         return fact;
@@ -339,7 +363,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const exponent: Expression  = parse_expression();
+            const exponent: Expression  = parse_exponent();
             return make_binary(operator, base, exponent, index)
         }
         return base;
@@ -349,7 +373,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.MINUS, TokenType.BANG)){
             const index: number = previous().index;
             const operator: UnaOperator = get_sign(previous()) as UnaOperator;
-            const operand: Expression = parse_expression();
+            const operand: Expression = parse_unary();
             return make_unary(operator, operand, index)
         }
         return parse_call();
@@ -388,10 +412,6 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_primary(): Expression {
         const index: number = peek().index;
-        if(match(TokenType.WHILE)) return parse_while();
-        if(match(TokenType.LOOP)) return parse_loop();
-        if(match(TokenType.LEFT_BRACE)) return parse_block();
-        if(match(TokenType.IF)) return parse_if();
         if(match(TokenType.NULL)) return make_literal(null, index)
         if(match(TokenType.TRUE)) return make_literal(true, index)
         if(match(TokenType.FALSE)) return make_literal(false, index)
@@ -402,10 +422,10 @@ export function parse(tokens: Array<Token>): Parser {
         }
         if(match(TokenType.LEFT_PAREN)) {
             const expr = parse_expression();
-            consume(TokenType.RIGHT_PAREN, 'Expected ")" after expressionn, got:"' + get_sign(peek()) + '"')
+            consume(TokenType.RIGHT_PAREN, 'Expected ")" after expression, got:"' + get_sign(peek()) + '"')
             return expr;
         }
-        throw new UntypescriptError(ErrorKind.UnexpectedToken, "Expected an expression.", peek().index);
+        throw new UntypescriptError(ErrorKind.UnexpectedToken, "Expected an expression", index);
     }
 
     function synchronize(): void {
@@ -417,11 +437,12 @@ export function parse(tokens: Array<Token>): Parser {
             switch (peek().type) {
                 case TokenType.FN:
                 case TokenType.VAR:
-                // case TokenType.FOR:
                 case TokenType.IF:
                 case TokenType.WHILE:
                 case TokenType.RETURN:
                 case TokenType.PRINT:
+                case TokenType.PRINT:
+                case TokenType.RIGHT_BRACE:
                     return;
             }
 
@@ -435,8 +456,8 @@ export function parse(tokens: Array<Token>): Parser {
             parser.output.push(statement);
         } catch (e) {
             parser.has_error = true
+            parser.latest_was_expression = false;
             parser.errors.push(e as UntypescriptError);
-            parser.has_error = true;
             synchronize();
         }
     }
