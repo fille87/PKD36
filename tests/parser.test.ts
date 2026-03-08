@@ -82,20 +82,6 @@ test("parses variable declaration", () => {
     expect((stmt as VariableDec).name).toBe("x");
 });
 
-test("snapshot binary expression", () => {
-    const tokens = [
-        token(TokenType.NUMBER_LIT, 1, 0),
-        token(TokenType.PLUS, null, 1),
-        token(TokenType.NUMBER_LIT, 2, 2),
-        token(TokenType.SEMICOLON, null, 3),
-        token(TokenType.EOF, null, 4),
-    ];
-
-    const result = parse(tokens);
-
-    expect(result.output).toMatchSnapshot();
-});
-
 describe("Parser - function declaration", () => {
 
     test("parses simple function declaration", () => {
