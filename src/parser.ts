@@ -25,7 +25,7 @@ import {
 
 export type Parser = {
     input: Array<Token>,
-    output: Array<Expression>,
+    output: Array<Expression | Statement>,
     errors: Array<UntypescriptError>,
     has_error: boolean,
     current: number,
@@ -33,7 +33,7 @@ export type Parser = {
 
 }
 
-export type ParserResult = Array<Expression> | Array<UntypescriptError>;
+export type ParserResult = Array<Expression | Statement> | Array<UntypescriptError>;
 
 export function parse_tokens(tokens: Array<Token>): ParserResult {
     const parser = parse(tokens);
@@ -92,7 +92,7 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
 
-    function parse_statement(): Expression {
+    function parse_statement(): Expression | Statement {
         if(match(TokenType.VAR)) return parse_var();
         if(match(TokenType.FN)) return parse_fn();
         if(match(TokenType.RETURN)) return parse_return();
@@ -185,24 +185,24 @@ export function parse(tokens: Array<Token>): Parser {
         throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
     }
 
-    function parse_print(): Expression {
+    function parse_print(): Statement {
         const index: number = previous().index;
         const expr: Expression = parse_expression()
         consume(TokenType.SEMICOLON, "Expected a ; at the end of print statement")
         return make_print(expr, index);
     }
 
-    function parse_expr_stmt(): Expression {
-        const index: number = peek().index;
-        const expr: Expression = parse_expression();
-        if (peek().type === TokenType.SEMICOLON) {
-            advance();
-            return make_expression_statement(expr, index);
-        }
-        return expr;
-        // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
-    }
-
+    // function parse_expr_stmt(): Statement {
+    //     const index: number = peek().index;
+    //     const expr: Expression = parse_expression();
+    //     if (peek().type === TokenType.SEMICOLON) {
+    //         advance();
+    //         return make_expression_statement(expr, index);
+    //     }
+    //     return expr;
+    //     // consume(TokenType.SEMICOLON, "Expected a ; at the end of the expression")
+    // }
+    //
     function parse_var(): Statement {
         const index: number = previous().index
         const name: string = consume(
@@ -269,9 +269,9 @@ export function parse(tokens: Array<Token>): Parser {
         return parse_block();
     }
 
-    function parse_block(): Expression{
+    function parse_block(): Expression {
         if(match(TokenType.LEFT_BRACE)){
-            const body: Array<Expression> = []
+            const body: Array<Expression | Statement> = []
             while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
                 body.push(parse_statement());
             }
@@ -498,7 +498,7 @@ function make_binary(operator: BinOperator, left: Expression,
     }
 }
 
-function make_print(expr: Expression, index: number): Expression {
+function make_print(expr: Expression, index: number): Statement {
     return {
         type: "Print",
         index,
@@ -551,7 +551,7 @@ function make_assignment(name: string, value: Expression, index: number): Expres
     }
 }
 
-function make_block(body: Array<Expression>, index: number): Expression {
+function make_block(body: Array<Expression | Statement>, index: number): Expression {
     return {
     type: "Block",
     label: null, // TODO: Add support for labels
@@ -560,7 +560,7 @@ function make_block(body: Array<Expression>, index: number): Expression {
     }
 }
 
-function make_expression_statement(expression:Expression, index: number): Expression {
+function make_expression_statement(expression:Expression, index: number): Statement {
     return {
         type: "Expression_statement",
         index,

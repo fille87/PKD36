@@ -50,7 +50,7 @@ let frames: Stack<Frame> = push(GLOBALS, empty_stack());
 let should_break: string | boolean = false;
 let should_return: boolean = false;
 
-export function interpret_results(res: Array<Expression>): Value {
+export function interpret_results(res: Array<Expression | Statement>): Value {
     let ret_val: Value = null;
     for (let i = 0; i < res.length; i += 1) {
         ret_val = interpret(res[i]);
@@ -59,17 +59,17 @@ export function interpret_results(res: Array<Expression>): Value {
 }
 
 // Runs the interpreter
-export function interpret(expr: Expression): Value { 
+export function interpret(expr: Expression | Statement): Value { 
 
     switch (expr.type) {
         case "Return":
             should_return = true;
-            return interpret(expr.expression);
+            return evaluate(expr.expression);
         case "Print":
-            console.log(interpret(expr.expression));
+            console.log(evaluate(expr.expression));
             return null;
         case "Expression_statement":
-            interpret(expr.expression);
+            evaluate(expr.expression);
             return null;
         case "Assignment":
             assign(expr);
@@ -80,9 +80,8 @@ export function interpret(expr: Expression): Value {
         case "Break":
             break_loop(expr as Break);
             return expr.return_expr != null
-                ? interpret(expr.return_expr)
+                ? evaluate(expr.return_expr)
                 : null;
-        // TODO
         case "Function_declaration":
             declare(expr as FunctionDec);
             return null;
@@ -93,7 +92,6 @@ export function interpret(expr: Expression): Value {
 
 // Evaluates the given expression
 function evaluate(expr: Expression): Value {
-
     switch (expr.type) {
         case "Literal":
             return literal(expr);

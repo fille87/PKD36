@@ -35,8 +35,9 @@ export type FunctionBinding = {
 
 export type Operation = Unary | Binary;
 
-export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
-export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While | Break;
+// export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
+export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | While;
+export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
 
 export type Declaration = VariableDec | FunctionDec
 
@@ -125,7 +126,7 @@ export type Block = {
     type: "Block",
     index: number,
     label: string | null,
-    body: Array<Expression>
+    body: Array<Expression | Statement>
 }
 export type Print = {
     type: "Print",
