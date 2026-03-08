@@ -40,19 +40,19 @@
 <Assignment> ::= IDENTIFIER "=" <Expression>
                \alt <LogicOr>
 
-<LogicOr> ::= <LogicAnd> ("or" <LogicAnd>)?
+<LogicOr> ::= <LogicAnd> ("or" <LogicAnd>)*
 
-<LogicAnd> ::= <Equality> ("and" <Equality>)?
+<LogicAnd> ::= <Equality> ("and" <Equality>)*
 
-<Equality> ::= <Comparison> (("==" | "!=") <Comparison>)?
+<Equality> ::= <Comparison> (("==" | "!=") <Comparison>)*
 
-<Comparison> ::= <Term> (("<" | "<=" | ">" | ">=") <Term>)?
+<Comparison> ::= <Term> (("<" | "<=" | ">" | ">=") <Term>)*
 
-<Term> ::= <Factor> (("+" | "-") <Factor>)?
+<Term> ::= <Factor> (("+" | "-") <Factor>)*
 
-<Factor> ::= <Exponent> (("*" | "/") <Exponent>)?
+<Factor> ::= <Exponent> (("*" | "/") <Exponent>)*
 
-<Exponent> ::= <Unary> ("**" <Exponent>)?
+<Exponent> ::= <Unary> ("**" <Exponent>)*
 
 <Unary> ::= ("-" | "!") <Unary>
           \alt <Call>
