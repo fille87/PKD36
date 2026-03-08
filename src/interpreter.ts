@@ -353,7 +353,7 @@ function declare(expr: Declaration): void {
                 } else {
                     throw new UntypescriptError(
                     ErrorKind.InvalidAssignment,
-                    `Function already exists`,
+                    "Function '" + expr.name + "' with " + fn.params.length + " parameters already declared",
                     expr.index
                 );
             

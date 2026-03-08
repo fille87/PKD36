@@ -60,3 +60,45 @@ describe("Interpret unary operators", () => {
         expect(interpret_source("test", s)).toBe(false);
     });
 });
+
+describe("Loops", () => {
+    test("Break with no return", () => {
+        const s = "loop { break; }";
+        expect(interpret_source("test", s)).toBe(null);
+    });
+    test("Break with return value", () => {
+        const s = "loop { break return 1; }";
+        expect(interpret_source("test", s)).toBe(1);
+    });
+    test("While", () => {
+        const s = "var x = 0; while x < 10 { x = x + 1; }; x";
+        expect(interpret_source("test", s)).toBe(10);
+    });
+    test("Labeled break", () => {
+        const s = "loop: a { loop: b { break: a; }; 3 }";
+        expect(interpret_source("test", s)).toBe(null);
+    });
+    test("Labeled break with return value", () => {
+        const s = "loop: a { loop: b { break: a return 5; } 3 }";
+        expect(interpret_source("test", s)).toBe(5);
+    });
+});
+
+describe("Function calls", () => {
+    test("No arguments", () => {
+        const s = "fn one() { 1 } one()";
+        expect(interpret_source("test", s)).toBe(1);
+    });
+    test("One argument", () => {
+        const s = "fn ret(n) { n } ret(2)";
+        expect(interpret_source("test", s)).toBe(2);
+    });
+    test("Multiple arguments", () => {
+        const s = "fn add(a, b, c) { a + b + c } add(1, 2, 3)";
+        expect(interpret_source("test", s)).toBe(6);
+    });
+    test("Overloading", () => {
+        const s = "fn fun(a, b) { a + b } fn fun(a, b, c) { a * b * c } fun(1, 2, 3) + fun(5, 5)";
+        expect(interpret_source("test", s)).toBe(16);
+    });
+});

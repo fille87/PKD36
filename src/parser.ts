@@ -217,11 +217,11 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_fn(): Statement{
-        const index: number = previous().index;
+        let index: number = previous().index;
         const name: string = get_sign(consume(
                 TokenType.IDENTIFIER,
                 "Expected an identifier in head of function declaration")) as string
-        const parameters: string[] = []
+        const parameters: Array<string> = []
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name");
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
