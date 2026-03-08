@@ -449,6 +449,7 @@ export function parse(tokens: Array<Token>): Parser {
             parser.output.push(statement);
         } catch (e) {
             parser.errors.push(e as UntypescriptError);
+            parser.has_error = true;
             synchronize();
         }
     }

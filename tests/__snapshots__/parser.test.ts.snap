@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`snapshot binary expression 1`] = `
+[
+  {
+    "expression": {
+      "index": 1,
+      "left": {
+        "index": 0,
+        "type": "Literal",
+        "value": 1,
+      },
+      "operator": "+",
+      "right": {
+        "index": 2,
+        "type": "Literal",
+        "value": 2,
+      },
+      "type": "Binary",
+    },
+    "index": 1,
+    "type": "Expression_statement",
+  },
+]
+`;
