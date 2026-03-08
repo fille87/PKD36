@@ -98,7 +98,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.RETURN)) return parse_return();
         if(match(TokenType.PRINT)) return parse_print();
         if(match(TokenType.BREAK)) return parse_break();
-        const expr = parse_expression()
+        const expr = parse_expression();
         if (peek().type === TokenType.SEMICOLON) {
             advance();
             return make_expression_statement(expr, expr.index);
@@ -124,6 +124,7 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_loop(): Expression {
+        console.log("Parsing loop");
         const index: number = peek().index;
         const condition: Expression = make_literal(true, index);
         let name : string | null = null
@@ -143,11 +144,15 @@ export function parse(tokens: Array<Token>): Parser {
         let index = peek().index;
         let label: string | null = null;
         let ret_val: Expression |null = null;
+        if(match(TokenType.COLON)) {
+            index = peek().index;
+            label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
+        }
         if(match(TokenType.SEMICOLON)) {
             return {
                 type: "Break",
                 index,
-                label: null,
+                label,
                 return_expr: null,
             };
         }
@@ -156,33 +161,11 @@ export function parse(tokens: Array<Token>): Parser {
             return {
                 type: "Break",
                 index,
-                label: null,
+                label,
                 return_expr: ret_val,
             }
         }
-        if (match(TokenType.COLON)) {
-            index = peek().index;
-            label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
-            if(match(TokenType.SEMICOLON)) {
-                return {
-                    type: "Break",
-                    index,
-                    label,
-                    return_expr: null,
-                };
-            }
-            if(match(TokenType.RETURN)) {
-                ret_val = (parse_return() as ReturnStatement).expression;
-                return {
-                    type: "Break",
-                    index,
-                    label: label,
-                    return_expr: ret_val,
-                }
-            }
-            throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or return statement after label" , index);
-        }
-        throw new UntypescriptError(ErrorKind.MissingToken, "Expected ; or : after break", index);
+        throw new UntypescriptError(ErrorKind.MissingToken, "Expected 'return', ';' or ':' after break", index);
     }
 
     function parse_print(): Statement {
@@ -232,7 +215,7 @@ export function parse(tokens: Array<Token>): Parser {
             } while (match(TokenType.COMMA));
         }
         consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
-        if(check(TokenType.LEFT_BRACE)) {
+        if(match(TokenType.LEFT_BRACE)) {
             const body: Block = parse_block() as Block;
             return make_fn(name, parameters, body, index);
         }
@@ -241,7 +224,7 @@ export function parse(tokens: Array<Token>): Parser {
             ErrorKind.MissingToken, "Expected body after function head", peek().index,)
     }
 
-    function parse_return(): Statement{
+    function parse_return(): Statement {
         const index: number = previous().index;
         const expr: Expression = parse_expression();
         consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
@@ -251,35 +234,30 @@ export function parse(tokens: Array<Token>): Parser {
     function parse_expression(): Expression {
         if(match(TokenType.WHILE)) return parse_while();
         if(match(TokenType.LOOP)) return parse_loop();
-        const expr: Expression = parse_if()
+        if(match(TokenType.LEFT_BRACE)) return parse_block();
+        if(match(TokenType.IF)) return parse_if();
+        const expr: Expression = parse_assignment();
         return expr;
     }
 
     function parse_if(): Expression {
-        if(match(TokenType.IF)){
-            const index: number = previous().index;
-            const condition: Expression = parse_expression();
-            const if_then: Expression = parse_expression();
-            let if_else: Expression | null = null
-            if(match(TokenType.ELSE)){
-                if_else = parse_expression();
-            }
-            return make_if(condition, if_then, if_else, index);
+        const index: number = previous().index;
+        const condition: Expression = parse_expression();
+        const if_then: Expression = parse_expression();
+        let if_else: Expression | null = null
+        if(match(TokenType.ELSE)){
+            if_else = parse_expression();
         }
-        return parse_block();
+        return make_if(condition, if_then, if_else, index);
     }
 
     function parse_block(): Expression {
-        if(match(TokenType.LEFT_BRACE)){
-            const body: Array<Expression | Statement> = []
-            while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
-                body.push(parse_statement());
-            }
-            consume(TokenType.RIGHT_BRACE, "Expected } after block");
-            const block = make_block(body, previous().index)
-            return block;
+        const body: Array<Expression | Statement> = []
+        while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
+            body.push(parse_statement());
         }
-        return parse_assignment();
+        consume(TokenType.RIGHT_BRACE, "Expected } after block");
+        return make_block(body, previous().index)
     }
 
     // TODO: Might need to hoist this up to earlier since as it is this counts as an expression statement 
@@ -290,7 +268,6 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.EQUAL)){
             const value: Expression = parse_expression();
             if(expr.type === "Variable") {
-                consume(TokenType.SEMICOLON, "Expected a ; at the end of variable assignment");
                 return make_assignment(expr.name, value, expr.index);
             }
             throw new UntypescriptError(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token.index);
@@ -385,7 +362,6 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_call(): Expression {
         let expr: Expression = parse_primary();
-
         while (true) {
             if(match(TokenType.LEFT_PAREN)){
                 if(expr.type !== "Variable"){
