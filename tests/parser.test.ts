@@ -1,29 +1,6 @@
-import { is_null, List, list, accumulate } from "../lib/list";
-import { Parser, parse } from "../src/parser";
-import { scan } from "../src/scanner"
-import {TokenType, Expression, Token, Binary, ExpressionStatement, Variable, VariableDec, FunctionDec, While, Literal} from "../lib/types";
-
-// function list_to_arr<T>(lst: List<T>): T[]{
-//     const out:T[] = []
-//     if(is_null(lst)){
-//         return [];
-//     }
-//     accumulate((item, index) => {
-//         out[index] = item;
-//         return index++;
-//         }, 0, lst)
-//     return out;
-// }
-
-// function test_helper(str:string){
-//     const code: string = str;
-//     const scan_result: List<Token> = scan(code) as List<Token>;
-//     const tokens:Token[] = list_to_arr(scan_result)
-//     return parse(tokens)
-// }
-function num(n: number, i = 0) {
-    return token(TokenType.NUMBER_LIT, n, i);
-}
+import { parse } from "../src/parser";
+import { TokenType, Token } from "../src/scanner"
+import { Binary, ExpressionStatement, Variable, VariableDec, FunctionDec, While, Literal } from "../lib/types";
 
 function token(type: TokenType, value: any = null, index = 0): Token {
     return { type, value, index };

@@ -24,9 +24,9 @@ import {
 
 
 export type Parser = {
-    input: Token[],
-    output: Expression[],
-    errors: UntypescriptError[],
+    input: Array<Token>,
+    output: Array<Expression>,
+    errors: Array<UntypescriptError>,
     has_error: boolean,
     current: number,
     end: number
@@ -43,7 +43,7 @@ export function parse_tokens(tokens: Array<Token>): ParserResult {
     return parser.output;
 }
 
-export function parse(tokens: Token[]): Parser {
+export function parse(tokens: Array<Token>): Parser {
     const parser: Parser = {
         input: tokens,
         output: [],
@@ -81,7 +81,7 @@ export function parse(tokens: Token[]): Parser {
     }
 
     // comfirms type of token
-    function match(...types: TokenType[]): boolean {
+    function match(...types: Array<TokenType>): boolean {
         for(let i = 0; i < types.length; i++) {
             if(check(types[i])){
                 advance();
@@ -260,7 +260,7 @@ export function parse(tokens: Token[]): Parser {
 
     function parse_block(): Expression{
         if(match(TokenType.LEFT_BRACE)){
-            const body: Expression[] = []
+            const body: Array<Expression> = []
             while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
                 body.push(parse_statement());
             }
@@ -393,7 +393,7 @@ export function parse(tokens: Token[]): Parser {
     }
 
     function finish_call(callee: Variable): Expression {
-        const args: Expression[] = [];
+        const args: Array<Expression> = [];
         const index: number = previous().index
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
@@ -448,12 +448,8 @@ export function parse(tokens: Token[]): Parser {
             const statement = parse_statement();
             parser.output.push(statement);
         } catch (e) {
-            // if (e instanceof UntypescriptError) {
-                parser.errors.push(e as UntypescriptError);
-                synchronize();
-            // } else {
-            //     throw e;
-            // }
+            parser.errors.push(e as UntypescriptError);
+            synchronize();
         }
     }
     return parser;
@@ -507,7 +503,7 @@ function make_var(name:string, initialiser: Expression | null,
     }
 }
 
-function make_fn(name:string, params:string[], body: Block, index:number): Statement {
+function make_fn(name:string, params:Array<string>, body: Block, index:number): Statement {
     return {
         type: "Function_declaration",
         index,
@@ -542,7 +538,7 @@ function make_assignment(name: string, value: Expression, index: number): Expres
     }
 }
 
-function make_block(body: Expression[], index: number): Expression {
+function make_block(body: Array<Expression>, index: number): Expression {
     return {
     type: "Block",
     label: null, // TODO: Add support for labels
@@ -589,7 +585,7 @@ function make_while(condition: Expression, body: Block, name: string | null, ind
     }
 }
 
-function make_call(callee:Variable, args:Expression[], index:number): Expression {
+function make_call(callee:Variable, args:Array<Expression>, index:number): Expression {
     return {
         type: "Call",
         index,

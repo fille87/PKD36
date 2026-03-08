@@ -8,61 +8,13 @@ export type UnaOperator = "-" | "!";
 export type Operator = BinOperator | UnaOperator;
 export type Value = number | string | boolean | null;
 
-// //tokens:
-// export enum TokenType {
-//     PLUS,
-//     MINUS,
-//     TIMES,
-//     DIVIDE,
-//     SEMICOLON,
-//     COLON,
-//     COMMA,
-//     LEFT_PAREN,
-//     RIGHT_PAREN,
-//     LEFT_BRACE,
-//     RIGHT_BRACE,
-//
-//     //Literals
-//     NUMBER_LIT,
-//     STRING_LIT,
-//     IDENTIFIER,
-//
-//     // One or two character tokens.
-//     BANG, BANG_EQUAL,
-//     EQUAL, EQUAL_EQUAL,
-//     GREATER, GREATER_EQUAL,
-//     LESS, LESS_EQUAL,
-//
-//     // Keywords.
-//     AND, ELSE, FALSE, FN, FOR, IF, NULL, OR,
-//     PRINT, RETURN, THIS, TRUE, VAR, WHILE, LOOP,
-//
-//     EOF,
-// }
-//
-//
-// export type Token = {
-//     type: TokenType,
-//     index: number,
-//     value: Value | undefined, // Value | null
-// }
-
-
-
-
 export type Frame = {
     label: string | null,
     vars: ProbingHashtable<string, Binding>;
 }
 export type Environment = NonEmptyStack<Frame>;
-// export type Binding = ExpressionBinding | FunctionBinding | Uninitialized;
-export type Binding = VariableBinding | FunctionBinding[] | Uninitialized;
+export type Binding = VariableBinding | Array<FunctionBinding> | Uninitialized;
 
-// export type ExpressionBinding = {
-//     type: "Expression_Binding",
-//     expression: Expression,
-// }
-//
 export type VariableBinding = {
     type: "Variable_Binding",
     value: Value,
@@ -74,7 +26,7 @@ export type Uninitialized = {
 
 export type FunctionBinding = {
     type: "Function_Binding",
-    params: string[],
+    params: Array<string>,
     body: Block,
 }
 
@@ -82,7 +34,6 @@ export type FunctionBinding = {
 //AST:
 
 export type Operation = Unary | Binary;
-
 
 export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | While | Break;
@@ -100,7 +51,7 @@ export type FunctionDec = {
     type: "Function_declaration",
     index: number,
     name: string,
-    params: string[],
+    params: Array<string>,
     body: Block,
 }
 
@@ -108,7 +59,7 @@ export type Call = {
         type: "Call",
         index: number,
         callee: Variable,
-        args: Expression[]
+        args: Array<Expression>
     }
 
 export type Break = {
@@ -174,7 +125,7 @@ export type Block = {
     type: "Block",
     index: number,
     label: string | null,
-    body: Expression[]
+    body: Array<Expression>
 }
 export type Print = {
     type: "Print",
@@ -244,13 +195,11 @@ export function get_sign(token: Token): Value {
         case TokenType.ELSE: return "else";
         case TokenType.FALSE: return "false";
         case TokenType.FN: return "fn";
-        // case TokenType.FOR: return "for";
         case TokenType.IF: return "if";
         case TokenType.NULL: return "null";
         case TokenType.OR: return "or";
         case TokenType.PRINT: return "print";
         case TokenType.RETURN: return "return";
-        // case TokenType.THIS: return "this";
         case TokenType.TRUE: return "true";
         case TokenType.VAR: return "var";
         case TokenType.WHILE: return "while";

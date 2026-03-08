@@ -71,7 +71,9 @@ export type Token = {
 type Literal = number | string;
 \end{lstlisting}
 The Token type contains information about what type of token it is, at what position in the source it occurred as well as an optional value.
-The token type is an enum containing all the possible meaningful units that untypescript supports. For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field. This contains a Literal, which is simply a number or string. 
+The token type is an enum containing all the possible meaningful units that untypescript supports. 
+For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. 
+For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field.
 
 \newpage
 \begin{lstlisting}[title = Example of token types]
@@ -85,7 +87,8 @@ The interface to the scanner looks like this:
 \begin{lstlisting}[frame = none]
 function scan(input: string): Array<Token> | Array<UntypescriptError>
 \end{lstlisting}
-where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. We could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
+where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. 
+We could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
 
 \begin{lstlisting}[title = Internal state representation of the scanner]
 type Scanner = {
