@@ -107,7 +107,8 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_while(): Expression {
-        const condition: Expression = parse_equality(); // TODO: This is a bugfix to prevent some weird edge cases from being passed as conditions, but does it need to be this restrictive?
+        const condition: Expression = parse_expression();
+        console.log(condition);
         let name : string | null = null // Must be a 
         const index: number = peek().index;
         if(match(TokenType.COLON)){
@@ -115,7 +116,7 @@ export function parse(tokens: Array<Token>): Parser {
                     TokenType.IDENTIFIER, 
                     "Expected an identifier after :")) as string;
         }
-        if(check(TokenType.LEFT_BRACE)){
+        if(match(TokenType.LEFT_BRACE)){
             const body:Block = parse_block() as Block;
             body.label = name;
             return make_while(condition, body, name, index)
@@ -124,7 +125,6 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_loop(): Expression {
-        console.log("Parsing loop");
         const index: number = peek().index;
         const condition: Expression = make_literal(true, index);
         let name : string | null = null
@@ -133,7 +133,7 @@ export function parse(tokens: Array<Token>): Parser {
                     TokenType.IDENTIFIER, 
                     "Expected an identifier after :")) as string;
         }
-        if(check(TokenType.LEFT_BRACE)){
+        if(match(TokenType.LEFT_BRACE)){
             const body: Block = parse_block() as Block;
             return make_while(condition, body, name, index)
         }
@@ -170,7 +170,7 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_print(): Statement {
         const index: number = previous().index;
-        const expr: Expression = parse_expression()
+        const expr: Expression = parse_expression();
         consume(TokenType.SEMICOLON, "Expected a ; at the end of print statement")
         return make_print(expr, index);
     }
@@ -232,10 +232,6 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_expression(): Expression {
-        if(match(TokenType.WHILE)) return parse_while();
-        if(match(TokenType.LOOP)) return parse_loop();
-        if(match(TokenType.LEFT_BRACE)) return parse_block();
-        if(match(TokenType.IF)) return parse_if();
         const expr: Expression = parse_assignment();
         return expr;
     }
@@ -279,7 +275,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_logic_and();
         while(match(TokenType.OR)){
             const index: number = previous().index
-            const right: Expression = parse_logic_and();
+            const right: Expression = parse_expression();
             expr = make_logic(expr, "or", right, index);
         }
         return expr;
@@ -288,7 +284,7 @@ export function parse(tokens: Array<Token>): Parser {
         let expr: Expression = parse_equality();
         while(match(TokenType.AND)){
             const index: number = previous().index
-            const right: Expression = parse_equality();
+            const right: Expression = parse_expression();
             expr = make_logic(expr, "and", right, index);
         }
         return expr;
@@ -299,7 +295,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_comparison()
+            const right: Expression = parse_expression();
             return make_binary(operator, equal, right, index);
         }
         return equal;
@@ -310,7 +306,7 @@ export function parse(tokens: Array<Token>): Parser {
                     TokenType.GREATER, TokenType.GREATER_EQ)) {
             const index: number = previous().index
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression = parse_term()
+            const right: Expression = parse_expression()
 
             return make_binary(operator, comp, right, index);
         }
@@ -322,7 +318,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.PLUS, TokenType.MINUS)){ // If plus or minus
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_term(); // right hand side of the expression
+            const right: Expression  = parse_expression(); // right hand side of the expression
             return make_binary(operator, term, right, index); // make AST
         }
         return term;
@@ -333,7 +329,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.TIMES, TokenType.DIVIDE)) { // If / or *
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_factor(); // right hand side of the expression
+            const right: Expression  = parse_expression(); // right hand side of the expression
             return make_binary(operator, fact, right, index) // make AST
         }
         return fact;
@@ -344,7 +340,7 @@ export function parse(tokens: Array<Token>): Parser {
         while(match(TokenType.POW)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const exponent: Expression  = parse_factor();
+            const exponent: Expression  = parse_expression();
             return make_binary(operator, base, exponent, index)
         }
         return base;
@@ -354,7 +350,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.MINUS, TokenType.BANG)){
             const index: number = previous().index;
             const operator: UnaOperator = get_sign(previous()) as UnaOperator;
-            const operand: Expression = parse_unary()
+            const operand: Expression = parse_expression();
             return make_unary(operator, operand, index)
         }
         return parse_call();
@@ -393,6 +389,10 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_primary(): Expression {
         const index: number = peek().index;
+        if(match(TokenType.WHILE)) return parse_while();
+        if(match(TokenType.LOOP)) return parse_loop();
+        if(match(TokenType.LEFT_BRACE)) return parse_block();
+        if(match(TokenType.IF)) return parse_if();
         if(match(TokenType.NULL)) return make_literal(null, index)
         if(match(TokenType.TRUE)) return make_literal(true, index)
         if(match(TokenType.FALSE)) return make_literal(false, index)
