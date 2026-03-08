@@ -1,0 +1,24 @@
+\begin{figure}[h]
+\centering
+\begin{forest}
+for tree={
+    draw,
+    rounded corners,
+    align=center,
+    parent anchor=south,
+    child anchor=north,
+    edge={->},
+    l=1.5cm
+}
+[Term
+    [3]
+    [+]
+    [Factor
+        [4]
+        [*]
+        [5]
+    ]
+]
+\end{forest}
+\caption{Parse tree for the expression $3 + 4 * 5$}
+\end{figure}

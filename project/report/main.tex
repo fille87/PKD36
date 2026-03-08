@@ -2,15 +2,37 @@
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+ \usepackage{amsmath}
+\usepackage{syntax}
+\usepackage{tabto}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{graphicx}
+\usepackage{forest}
+
 \usepackage{listings}
+\usepackage{xcolor}
 
 \lstset{
-    basicstyle = \footnotesize,
-    frame = single,
-    morekeywords = {switch, case, break, continue, if, else, const, return, while }
+    language=Java,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    stepnumber=1,
+    numbersep=8pt,
+    frame=single,
+    tabsize=2,
+    breaklines=true,
+    showstringspaces=false
+    frame=lines,
+    backgroundcolor=\color{gray!5},
+    rulecolor=\color{black},
 }
-
-\title{Untypescript}
+\setlength{\grammarindent}{7em}
+\setlength{\grammarparsep}{12pt}
+\title{Untypedscript}
 \author{Group 36
 \\Erwin Hörnell, Felix Svensson, Alexander Thoresson
 \\\\This is our project for PKD 2026}
@@ -33,6 +55,7 @@
     \item The project title, the group number, the names of all group members, and a statement of the fact that this is the project for this course this year.
     \item A table of contents,
     \item An introduction, containing the motivation for the project and the context it should be used in, as well as a summary of what the program does.
+    
     \item Use cases: a guide for how to actually use your program, including key examples.
     \item Program documentation: a description of how your program really works, including at least:
         \begin{itemize}
@@ -52,190 +75,46 @@
 \newpage
 
 \section{Introduction}
-
+    We wanted to test and apply the maximum amount of knowledge that we had acquired during the course. So we argued: what better way of doing so than to design our own interpreter for our own programming language? 
 \section{Use cases}
 
 \section{Program documentation}
+\subsection{Parser}
 
-\subsection{Scanner}
-The first component handles the conversion from a string of text into a sequence of meaningful tokens that the parser can then work with. 
-A string of text can only really be worked with one character at a time, and an untypescript source file consists of various different meaningful units that vary from a single character up to an unlimited length. It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
-By having a first stage where we identify these units and convert them into a uniform data type we don't need to think about this in the later, more complex stages of parsing and interpreting, and can instead work with this token structure as the smallest meaningful unit. In this stage we can also catch the most obvious syntax errors, like unrecognized characters and malformed number literals, and halt execution before doing any more unnecessary work.
+The parser takes an array of tokens as input and returns either an array of ASTs (Abstract Syntax Trees) or an array of errors if any are encountered. If the parser detects missing or unexpected tokens, it records an error and attempts to recover before continuing the parsing process. This allows multiple errors to be reported from a single run, improving the user experience by providing more comprehensive feedback.
 
-\begin{lstlisting}[title = Token]
-export type Token = {
-    type: TokenType,
-    index: number,
-    value: Literal | undefined
-}
-type Literal = number | string;
-\end{lstlisting}
-The Token type contains information about what type of token it is, at what position in the source it occurred as well as an optional value.
-The token type is an enum containing all the possible meaningful units that untypescript supports. 
-For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. 
-For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field.
+Individual tokens cannot be interpreted in isolation, as their meaning often depends on their position relative to other tokens. Instead, tokens are grouped into larger syntactic components such as statements and expressions. These components can recursively contain other components, forming a hierarchical tree structure that represents the program. Each node in this structure has a specific type, a set of fields, and rules that define what child nodes it may contain. These rules are described using a context-free grammar (CFG).
 
-\newpage
-\begin{lstlisting}[title = Example of token types]
-export enum TokenType = {
-    COMMA, PLUS, MINUS ...
-    RIGHT_PAREN, LEFT_PAREN ...
-    NUMBER_LIT, STRING_LIT, IDENTIFIER
-}
-\end{lstlisting}
-The interface to the scanner looks like this:
-\begin{lstlisting}[frame = none]
-function scan(input: string): Array<Token> | Array<UntypescriptError>
-\end{lstlisting}
-where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. 
-We could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
+\subsubsection{Context-Free Grammar}
 
-\begin{lstlisting}[title = Internal state representation of the scanner]
-type Scanner = {
-    errored: boolean;
-    input: string;
-    input_length: number;
-    index: number;
-}
-\end{lstlisting}
-The scanner works by initializing with an index of 0. We then peek at the character at that index, and pass this into a big switch statement.
+\input{figures/grammar}
 
-For simple single character tokens, we can simply output the corresponding token and move on:
-\begin{lstlisting}
-switch (ch) {
-    case ",":
-        output.push(make_token(TokenType.COMMA));
-        break;
-\end{lstlisting}
-For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead:
-\begin{lstlisting}
-    case "=":
-        if (peek(1) === "=") {
-            output.push(make_token(TokenType.DOUBLE_EQUAL));
-            advance();
-        } else {
-            output.push(make_token(TokenType.EQUAL));
-        }
-        break;
-\end{lstlisting}
-\break
-If we match a quotation mark, we try to scan a string literal which simply ends at the next quotation mark. We could have made separate syntax for multi line strings, but just allowing simple string literals to span multiple lines was the simplest solution both to implement as well as to use.
-\begin{lstlisting}
-    case '"':
-        const s = scan_string();
-        ...
-\end{lstlisting}
+The terminals of this grammar consist of keywords, literals, identifiers, braces, parentheses, commas, colons, semicolons, and operators. The grammar was partially designed before implementation began and served as a guide during development. As the parser was implemented, additional rules were refined and incorporated into the grammar.
 
-Finally, we end up in the default case:
-\begin{lstlisting}
-    default:
-        if (is_whitespace(ch)) {
-            break;
-        } else if (is_digit(ch)) {
-            const n = scan_number();
-            ...
-        } else if (is_letter(ch) || ch == "_") {
-            const ident = scan_identifier();
-            const keyword = ph_lookup(keywords, 
-                                      ident.value as string);
-            output.push(
-                keyword !== undefined 
-                    ? token(ident.index, keyword) 
-                    : ident
-            );
-            continue;
-            ...
-        } else {
-            error(...)
-            skip_line = true;
-        }
-\end{lstlisting}
-We first check if the character is whitespace, in which case we can ignore it. This includes line breaks, tabs and spaces.
+An important architectural feature of the grammar is the hierarchical structure of expressions. Higher-level expressions produce lower-precedence expressions followed by repeated operator–expression patterns such as \texttt{( )*}. This structure naturally enforces operator precedence and associativity in the language.
 
-If the character is a digit we try to scan a number literal and if it is a letter or underscore we try to scan an identifier. If we still can't match it, we output a syntax error and skip the rest of the line. 
+\subsubsection{Recursive Descent Parsing}
 
-The reason we skip the line is because if we encounter a syntax error the rest of the line is likely to be invalid as well, and by skipping to the next line we make sure not to spam the user with meaningless errors. This is done simply by setting a flag that, if set, at the beginning of the loop will simply keep advancing the scanner to the next character until we either hit the end of file or a newline character.
+Recursive descent parsing was used to implement the grammar and enforce the correct order of operations in expressions. In this approach, each non-terminal in the grammar corresponds to a parsing function. These functions call one another recursively, mirroring the hierarchical structure defined by the grammar.
 
-After the switch statement we advance to the next character and loop back around. If we hit the end of file we check if there were any errors and return these or the successful tokens accordingly:
-\begin{lstlisting}
-    case "\0":
-        if (!scanner.errored) {
-            output.push(make_token(TokenType.EOF));
-            return output;
-        } else {
-            return errors;
-        }
-\end{lstlisting}
+A clear example of this design can be seen in how the parser handles \textit{terms} and \textit{factors}. The functions \texttt{parse_term()} and \texttt{parse_factor()} implement two adjacent levels of operator precedence.
 
-For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these.
+\input{code/parse\_term}
+\input{code/parse\_factor}
 
-\begin{lstlisting}[title = scan\_number]
-    const start = scanner.index;
-    while(is_digit(peek())) {
-        advance();
-    }
-    if(peek() === ".") {
-        if (!is_digit(peek(1))) {
-            // Emit a syntax error and skip the rest of the line
-        }
-        advance();
-    }
-    while(is_digit(peek())) {
-        advance();
-    }
+The ASTs produced by \texttt{parse_term()} may contain either a factor or another term as a direct child node. In contrast, a factor node cannot contain a term as a direct child. This structure ensures that multiplication and division occur before addition and subtraction.
 
-    return token(
-        start,
-        TokenType.NUMBER_LIT, 
-        Number(scanner.input.substring(start, scanner.index))
-    );
-\end{lstlisting}
-A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we peek at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
+\input{figures/parse\_tree}
 
-In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
 
-If the character after the dot is a digit, we simply keep advancing until we hit something else. We then use the built in Number parsing constructor to parse the substring between start and end index into a number.
-
-\begin{lstlisting}[title = scan\_identifier]
-    const start = scanner.index;
-    while(is_letter(peek()) 
-          || is_digit(peek()) 
-          || peek() == "_") {
-        advance();
-    }
-
-    return token(
-        start,
-        TokenType.IDENTIFIER,
-        scanner.input.substring(start, scanner.index)
-    );
-\end{lstlisting}
-The identifier scanning is a bit simpler, since we just advance while the character is one of the ones that we support in our identifier names (letters, numbers and underscores).
-This is also how we handle keywords like if and else: after scanning an identifier we do a hash table lookup against a table of keywords. If there's a match, we output the corresponding token instead. We could have handled this separately in the switch statement, like so:
-\begin{lstlisting}[frame = none]
-case "f":
-    switch (peek(1)) {
-        case "n":
-            // fn keyword
-        case "a":
-            // keep checking for 'false'
-        ...
-\end{lstlisting}
-However, not only would this end up with a very messy switch statement, it would also not let the user use identifiers that start with a keyword. For instance, 'var' is a keyword in untypescript for function declarations, but this would also disallow identifiers like 'variable' from being used. You could do even more checks inside the different cases to fix this, but the simpler approach is simply to scan as long of an identifier as we can, and then check if it matches one of the keywords.
-
-\begin{lstlisting}[title = keywords hashtable]
-const keywords: ProbingHashtable<string, TokenType> = 
-        ph_empty(15, (word) => word.charCodeAt(0));
-
-    ph_insert(keywords, "and", TokenType.AND);
-    ph_insert(keywords, "or", TokenType.OR);
-    ph_insert(keywords, "if", TokenType.IF);
-    ...
-\end{lstlisting}
-The reason we use a hashtable for the keywords is that it gives us an easy way to look up a string and get back a corresponding token. As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
-
+    
 \section{Discussion}
 
+Some aspects of the design and implementation may be suboptimal. Firstly, the division of AST node types into \textit{Expressions} and \textit{Statements} is somewhat unclear, and the distinction between the two changed several times during development. This was partly caused by the intended syntax of UntypedScript, where most constructs return a value. At the same time, we attempted to adhere to conventions from the C programming language, where statements and expressions are more clearly separated. These competing design goals made the overall structure of the AST less consistent than initially intended.
+
+Secondly, the way scoping is currently handled in the interpreter makes it difficult to implement lexical scoping for functions, as well as returning functions and assigning them to variables. Supporting such features would make UntypedScript a more flexible and expressive language. However, implementing a more robust environment model would have required significantly more development time. Given the limited time available, the current implementation allowed us to focus on delivering core functionality.
+
+As a consequence, the present design of the interpreter may become a bottleneck for further development. Nevertheless, it enabled the implementation of a working language with several key features within the time of the project.
 \section{Conclusion}
 
 \end{document}
