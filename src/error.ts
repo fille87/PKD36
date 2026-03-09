@@ -1,5 +1,4 @@
-import { Token, token_length, TokenType } from "./scanner";
-import { get_sign } from "../lib/types";
+import { Token, token_length } from "./scanner";
 
 export class UntypescriptError extends Error {
     kind: ErrorKind;
@@ -28,12 +27,6 @@ export function error_with_length(kind: ErrorKind, message: string, index: numbe
 export function error_with_token(kind: ErrorKind, message: string, token: Token) {
     const e = new UntypescriptError(kind, message, token.index);
     e.length = token_length(token);
-    return e;
-}
-
-export function syntax_error(message: string, token: Token) {
-    const e = new UntypescriptError(ErrorKind.SyntaxError, message, token.index);
-    e.length = length;
     return e;
 }
 
