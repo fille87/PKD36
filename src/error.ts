@@ -124,7 +124,7 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
         console.log(line.line_number.toString() + " |" + indentation + line.source);
         console.log(margin("") + make_pointer(line, e.index, e.length))
         if (next != undefined && next.length != 0) {
-            console.log(margin((line.line_number + 1).toString()) + previous);
+            console.log(margin((line.line_number + 1).toString()) + next);
         }
         console.log();
     }

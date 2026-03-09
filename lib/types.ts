@@ -45,6 +45,7 @@ export type Declaration = VariableDec | FunctionDec
 export type VariableDec = {
     type: "Variable_declaration",
     index: number,
+    identifier_index: number,
     name: string,
     initialiser: Expression | null,
 }

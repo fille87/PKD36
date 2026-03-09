@@ -9,6 +9,7 @@ import {
     Break,
     Variable,
     ReturnStatement,
+    VariableDec,
 } from"../lib/types";
 import {
     TokenType,
@@ -191,7 +192,8 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_var(): Statement {
-        const index: number = previous().index
+        const index: number = previous().index;
+        const identifier_index: number = peek().index;
         const name: string = consume(
                         TokenType.IDENTIFIER,
                         "Expected identifier after var").value as string
@@ -200,7 +202,7 @@ export function parse(tokens: Array<Token>): Parser {
             init = parse_expression();
         }
         consume(TokenType.SEMICOLON, "Expected a ; at the end of variable declaration");
-        return make_var(name, init, index);
+        return make_var(name, init, index, identifier_index);
     }
 
     function parse_fn(): Statement{
@@ -495,11 +497,11 @@ function make_print(expr: Expression, index: number): Statement {
     }
 }
 
-function make_var(name:string, initialiser: Expression | null, 
-                                                index: number): Statement {
+function make_var(name:string, initialiser: Expression | null, index: number, identifier_index: number): VariableDec {
     return {
         type: "Variable_declaration",
         index,
+        identifier_index,
         name,
         initialiser
     }

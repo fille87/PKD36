@@ -50,6 +50,25 @@ describe("Interpret binary operators", () => {
     });
 });
 
+describe("Associativity and orders of operation", () => {
+    test("Addition and multiplication", () => {
+        const s = "2 + 3 * 4";
+        expect(interpret_source("test", s)).toBe(14);
+    });
+    test("Multiplication and exponentiation", () => {
+        const s = "2 * 3 ** 4";
+        expect(interpret_source("test", s)).toBe(2 * Math.pow(3, 4));
+    });
+    test("Left to right", () => {
+        const s = "2 ** 3 ** 2";
+        expect(interpret_source("test", s)).toBe(Math.pow(8, 2));
+    });
+    test("Grouping", () => {
+        const s = "2 ** (3 ** 2)";
+        expect(interpret_source("test", s)).toBe(Math.pow(2, 9));
+    });
+});
+
 describe("Interpret unary operators", () => {
     test("Interpret minus", () => {
         const s = "-1";
@@ -69,10 +88,16 @@ describe("Interpret unary operators", () => {
     });
 });
 
+
+
 describe("Loops", () => {
     test("Break with no return", () => {
         const s = "loop { break; }";
         expect(interpret_source("test", s)).toBe(null);
+    });
+    test("Can assign to global variables", () => {
+        const s = "var x; { x = true; } x";
+        expect(interpret_source("test", s)).toBe(true);
     });
     test("Break with return value", () => {
         const s = "loop { break return 1; }";
@@ -112,5 +137,55 @@ describe("Function calls", () => {
     test("Overloading", () => {
         const s = "fn fun(a, b) { a + b } fn fun(a, b, c) { a * b * c } fun(1, 2, 3) + fun(5, 5)";
         expect(interpret_source("test", s)).toBe(16);
+    });
+    test("Nested calls", () => {
+        const s = "fn pow2(n) { n ** 2 } pow2(pow2(3))";
+        expect(interpret_source("test", s)).toBe(Math.pow(Math.pow(3, 2), 2));
+    });
+});
+
+describe("Logical operators", () => {
+    test("true and true", () => {
+        const s = "true and true";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("true and false", () => {
+        const s = "true and false";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+    test("false and false", () => {
+        const s = "false and false";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+    test("and chaining", () => {
+        const s = "true and true and false";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+    test("true or true", () => {
+        const s = "true or true";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("true or false", () => {
+        const s = "true or false";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("false or false", () => {
+        const s = "false or false";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+    test("or chaining", () => {
+        const s = "false or false or true";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+});
+
+describe("If/else", () => {
+    test("Basic if/else", () => {
+        const s = "var x = true; if true { x = false; } else { x = true; }; x";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+    test("If/else is an expression with a return value", () => {
+        const s = "var x = if true { false } else { true }; x";
+        expect(interpret_source("test", s)).toBe(false);
     });
 });
