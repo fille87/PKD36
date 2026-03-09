@@ -43,6 +43,11 @@ export type Parser = {
 
 export type ParserResult = Array<Expression | Statement> | Array<UntypedscriptError>;
 
+/**
+ * Helper function that returns errors if needed else normal parsing output 
+ * @param tokens an array of tokens
+ * @returns Either Array<Statement | Expression> or Array<UntypescriptError>
+ */
 export function parse_tokens(tokens: Array<Token>): ParserResult {
     const parser = parse(tokens);
     if (has_errors(parser.errors)) {
@@ -50,7 +55,13 @@ export function parse_tokens(tokens: Array<Token>): ParserResult {
     }
     return parser.output;
 }
-
+/**
+ * Parses an array of Tokens and returns an array of types representing AST:s 
+ * @param tokens an array of tokens
+ * @returns a parser containing mainly 
+ *          output: Array<Statement | Expression>
+ *          input:  Array<UntypescriptError>
+ */
 export function parse(tokens: Array<Token>): Parser {
     const parser: Parser = {
         input: tokens,
