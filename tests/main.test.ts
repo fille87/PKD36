@@ -1,3 +1,4 @@
+import { has_errors } from "../src/error";
 import { interpret_source } from "../src/interpret_source";
 
 describe("Interpret literals", () => {
@@ -99,6 +100,14 @@ describe("Loops", () => {
         const s = "var x; { x = true; } x";
         expect(interpret_source("test", s)).toBe(true);
     });
+    test("Shadowing outer", () => {
+        const s = "var x = 5; { var x = true; } x";
+        expect(interpret_source("test", s)).toBe(5);
+    });
+    test("Shadowing inner", () => {
+        const s = "var x = 5; { var x = true; x }";
+        expect(interpret_source("test", s)).toBe(true);
+    });
     test("Break with return value", () => {
         const s = "loop { break return 1; }";
         expect(interpret_source("test", s)).toBe(1);
@@ -177,6 +186,14 @@ describe("Logical operators", () => {
         const s = "false or false or true";
         expect(interpret_source("test", s)).toBe(true);
     });
+    test("Mixed and/or", () => {
+        const s = "true or true and false";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("Grouped operators", () => {
+        const s = "(true or true) and false";
+        expect(interpret_source("test", s)).toBe(false);
+    });
 });
 
 describe("If/else", () => {
@@ -187,5 +204,44 @@ describe("If/else", () => {
     test("If/else is an expression with a return value", () => {
         const s = "var x = if true { false } else { true }; x";
         expect(interpret_source("test", s)).toBe(false);
+    });
+});
+
+describe("Errors", () => {
+    test("Malformed integer", () => {
+        const s = "2a";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Malformed decimal", () => {
+        const s = "2.a";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Didn't close string literal", () => {
+        const s = '"a';
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Invalid character", () => {
+        const s = 'var & = 3;';
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Multiple expressions in a row", () => {
+        const s = "3 2";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Calling a function that doesn't exist", () => {
+        const s = "test()";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Calling a function with the wrong number of arguments", () => {
+        const s = "fn test(n) { n } test(1, 2)";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Breaking from outside a block", () => {
+        const s = "break;";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Reading uninitialized variable", () => {
+        const s = "var x; x";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
     });
 });
