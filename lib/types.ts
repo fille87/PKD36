@@ -35,8 +35,7 @@ export type FunctionBinding = {
 
 export type Operation = Unary | Binary;
 
-// export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | Statement;
-export type Expression = Literal | Unary | Binary | Grouping | Block | Variable | Assignment | If | Logic | Call | While;
+export type Expression = Literal | Unary | Binary | Block | Variable | Assignment | If | Logic | Call | While;
 export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
 
 export type Declaration = VariableDec | FunctionDec
@@ -153,11 +152,6 @@ export type Binary = {
     left: Expression;
     right: Expression;
 };
-export type Grouping = {
-    type: "Grouping",
-    index: number,
-    expresion: Expression
-}
 
 
 export function get_sign(token: Token): Value {

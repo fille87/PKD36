@@ -1,6 +1,5 @@
 import {
     Expression, Literal, Unary, Binary, Value,
-    Grouping,
     Statement,
     Block,
     Assignment,
@@ -15,22 +14,32 @@ import {
     If,
     Call,
     FunctionBinding,
-    Logic} from"../lib/types";
+    Logic,
+    Variable
+} from"../lib/types";
 import {
     UntypescriptError,
     ErrorKind,
     error_with_length,
 } from "./error";
 import { ph_empty, ph_insert, ph_lookup } from "../lib/hashtables";
-import { Stack, empty as empty_stack, push, top, pop, is_empty, display_stack } from "../lib/stack";
+import { Stack, empty as empty_stack, push, top, pop, is_empty } from "../lib/stack";
 
+// Default values for each new Frame's hashtable
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
+
 const GLOBALS: Frame = empty_frame();
 let frames: Stack<Frame> = push(GLOBALS, empty_stack());
+
 let should_break: string | boolean = false;
 let should_return: boolean = false;
 
+/**
+ * Interprets the result from the parser
+ * @param res The results Array to interpret
+ * @returns The return value of the last interpreted Expression or Statement
+ */
 export function interpret_results(res: Array<Expression | Statement>): Value {
     let ret_val: Value = null;
     for (let i = 0; i < res.length; i += 1) {
@@ -39,7 +48,11 @@ export function interpret_results(res: Array<Expression | Statement>): Value {
     return ret_val;
 }
 
-// Runs the interpreter
+/**
+ * Interpret a single Statement or Expression
+ * @param expr The Expression or Statement to interpret
+ * @returns The return value of the Expression or Statement
+ */
 export function interpret(expr: Expression | Statement): Value { 
     switch (expr.type) {
         case "Return":
@@ -67,13 +80,15 @@ export function interpret(expr: Expression | Statement): Value {
     }
 }
 
-// Evaluates the given expression
+/**
+ * Evaluates an Expression
+ * @param expr The Expression to evaluate
+ * @returns The return value of the Expression
+ */
 function evaluate(expr: Expression): Value {
     switch (expr.type) {
         case "Literal":
             return literal(expr);
-        case "Grouping":
-            return grouping(expr);
         case "Unary":
             return unary(expr);
         case "Binary":
@@ -95,18 +110,22 @@ function evaluate(expr: Expression): Value {
     }
 }
 
-// Returns the value of the literal expression
-function literal(expr: Literal): Value {
-    return expr.value;
+/**
+ * Returns the value of a Literal
+ * @param lit The Literal to get the value of
+ * @returns The Literal value
+ */
+function literal(lit: Literal): Value {
+    return lit.value;
 }
 
-// Evaluates the expression within parentheses
-function grouping(expr: Grouping) {
-    return evaluate(expr.expresion);
-}
-
-// Evaluates the operand and returns the complete unary expression
-function unary(expr: Unary) {
+/**
+ * Evaluates a unary expression
+ * @param expr The expression to evaluate
+ * @returns The result of the evaluation
+ * @throws Throws an error if '-' is used with something that doesn't evaluate to a number
+ */
+function unary(expr: Unary): number | boolean {
     const operand: Value = evaluate(expr.operand);
     
     switch (expr.operator) {
@@ -120,15 +139,25 @@ function unary(expr: Unary) {
     }
 }
 
-// Returns true for all value type Value, except for "null" and "false"
+/**
+ * Checks if a Value is considered 'truthy' (equivalent to true) or not
+ * All values except for null and false are considered truthy
+ * @param value The value to check
+ * @returns Whether the value is truthy or not
+ */
 function is_truthy(value: Value): boolean {
     if (value == null) return false;
     if (typeof value === "boolean") return value;
     return true;
 }
 
-// Returns true if the values a and b are equal
-function isEqual(a: Value, b: Value): boolean {
+/**
+ * Checks if two values are equal
+ * @param a The first value
+ * @param b The second value
+ * @returns True if a and b are equal, false otherwise
+ */
+function is_equal(a: Value, b: Value): boolean {
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
     return typeof a === typeof b
@@ -138,21 +167,27 @@ function isEqual(a: Value, b: Value): boolean {
               : false;
 }
 
-// Converts value to type string
+/**
+ * Gets the string representation of a Value
+ * @param value The value to stringify
+ * @returns The string representation of a value
+ */
 function stringify(value: Value): string {
     if (value == null) return "null";
     return value.toString();
 }
 
-// Evaluates the left and right sides of a binary expression and returns the result of using the operator with the values
-function binary(expr: Binary) {
-    const left: Value | null = evaluate(expr.left);
-    const right: Value | null = evaluate(expr.right); 
 
-    // Not actually sure if this is needed, these errors should be caught in parsing
-    if (left === null || right === null) {
-        throw new UntypescriptError(ErrorKind.RuntimeError, "Expected expression to the " + left === null ? "left" : "right" + " of '" + expr.operator + "'", (expr.left === null ? expr.left : expr.right).index);
-    }
+/**
+ * Evaluates the left and right sides of a binary expression, 
+ * then applies the specified operator to these
+ * @param expr The binary expression to evaluate
+ * @returns The result of the evaluation
+ * @throws Throws an error if invalid types are passed to the operator (like when trying to add null and null)
+ */
+function binary(expr: Binary): Value {
+    const left = evaluate(expr.left);
+    const right = evaluate(expr.right); 
 
     switch (expr.operator) {
         case ">":
@@ -204,15 +239,21 @@ function binary(expr: Binary) {
             }
             throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
         case "!=":
-            return !isEqual(left, right);
+            return !is_equal(left, right);
         case "==":
-            return isEqual(left, right);
+            return is_equal(left, right);
     }
 }
 
+/**
+ * Evaluates a logic expression
+ * @param expr The expression to evaluate
+ * @returns The result of the evaluation
+ */
 function logic(expr: Logic): boolean {
-    const left: Value | null = evaluate(expr.left);
-    const right: Value | null = evaluate(expr.right); 
+    const left = evaluate(expr.left);
+    const right = evaluate(expr.right); 
+
     switch (expr.operator) {
         case "or":
             return is_truthy(left) || is_truthy(right);
@@ -221,8 +262,14 @@ function logic(expr: Logic): boolean {
     }
 }
 
-function block(block: Block): Value | null {
-    let return_value: Value | null = null;
+/**
+ * Evaluates a block expression
+ * @param expr The expression to evaluate
+ * @returns The result of the evaluation. Corresponds to the result 
+ * of the last Expression or Statement in the block, or a break/break return
+ */
+function block(block: Block): Value {
+    let return_value: Value = null;
     enter_frame(null);
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
@@ -233,11 +280,16 @@ function block(block: Block): Value | null {
             break;
         }
     }
-    exit_frame();
+    pop_frame();
     return return_value;
 }
 
-function conditional(expr: If): Value | null {
+/**
+ * Evaluates a conditional expression
+ * @param expr The expression to evaluate
+ * @returns The result of the evaluation. 
+ */
+function conditional(expr: If): Value {
     if(is_truthy(evaluate(expr.condition))) {
         return interpret(expr.if_then);
     }
@@ -247,7 +299,12 @@ function conditional(expr: If): Value | null {
     return null;
 }
 
-function lookup(expr: {name: string, index: number}): Binding | undefined {
+/**
+ * Looks up the type of Binding of a previously declared (in this or a higher scope) identifier
+ * @param name The identifier to look up
+ * @returns Undefined the identifier hasn't already been declared, otherwise returns its type of Binding
+ */
+function lookup(name: string): Binding | undefined {
     if (is_empty(frames)) {
         return undefined;
     }
@@ -258,7 +315,7 @@ function lookup(expr: {name: string, index: number}): Binding | undefined {
         // Safety: We've made sure frames is not empty
         frame = pop_frame()!;
         temp_stack = push(frame, temp_stack);
-        res = ph_lookup(frame.vars, expr.name);
+        res = ph_lookup(frame.vars, name);
         if (res != undefined) {
             while(!is_empty(temp_stack)) {
                 const temp = top(temp_stack);
@@ -272,8 +329,14 @@ function lookup(expr: {name: string, index: number}): Binding | undefined {
     return res;
 }
 
-function get_variable_value(expr: {name: string, index: number}): Value {
-    const res = lookup(expr);
+/**
+ * Gets the value of a Variable in the current scope
+ * @param expr The Variable to look up
+ * @returns The Value of the Variable. Function bindings return a string representation.
+ * @throws Throws an error if the variable couldn't be found in the current scope, or if it is uninitialized.
+ */
+function get_variable_value(expr: Variable): Value {
+    const res = lookup(expr.name);
     if (res === undefined) {
         throw error_with_length(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index, expr.name.length);
     }
@@ -290,6 +353,12 @@ function get_variable_value(expr: {name: string, index: number}): Value {
 
 }
 
+/**
+ * Declares a variable in the current scope
+ * @param expr The Declaration statement
+ * @throws Throws an error if trying to overwrite a function in the current scope, 
+ * redeclaring a function with the same number of parameters or redeclaring a variable that already exists with no initializer
+ */
 function declare(expr: Declaration): void {
     let frame: Frame | undefined;
     let existing: Binding | undefined;
@@ -309,11 +378,13 @@ function declare(expr: Declaration): void {
             let val: Uninitialized | VariableBinding = expr.initialiser === null
                 ? { type: "Uninitialized" }
                 : { type: "Variable_Binding", value: evaluate(expr.initialiser)};
+
             // Safety: We just pushed a frame onto frames
             frame = pop_frame()!;
             ph_insert(frame.vars, expr.name, val);
             push_frame(frame);
-            return
+            return;
+
         case "Function_declaration":
             frame = pop_frame();
             if (frame === undefined) {
@@ -338,14 +409,13 @@ function declare(expr: Declaration): void {
                     existing.push(fn);
                     ph_insert(frame.vars, expr.name, existing)
                     push_frame(frame);
-                    return
+                    return;
                 } else {
                     throw new UntypescriptError(
-                    ErrorKind.InvalidAssignment,
-                    "Function '" + expr.name + "' with " + fn.params.length + " parameters already declared",
-                    expr.index
-                );
-            
+                        ErrorKind.InvalidAssignment,
+                        "Function '" + expr.name + "' with " + fn.params.length + " parameters already declared",
+                        expr.index
+                    );
                 }
             }
         throw new UntypescriptError(
@@ -355,8 +425,14 @@ function declare(expr: Declaration): void {
     }
 }
 
-function assign(expr: Assignment) {
-    const res = lookup(expr); // This will throw an error if not already declared
+/**
+ * Evaluates and assigns a value to an identifier in the current scope
+ * @param expr The Assignment expression
+ * @param returns The value that was assigned
+ * @throws Throws an error if trying to assign a value to a function identifier
+ */
+function assign(expr: Assignment): Value {
+    const res = lookup(expr.name); // This will throw an error if not already declared
     if (Array.isArray(res)) {
         throw error_with_length(ErrorKind.RuntimeError, "Cannot assign value to function identifier '" + expr.name + "'", expr.index, expr.name.length);
     }
@@ -389,27 +465,42 @@ function assign(expr: Assignment) {
     return null;
 }
 
-function loop(expr: While): Value | null {
-    let return_value: Value | null = null;
+/**
+ * Evaluates a While expression
+ * @param expr The expression to evaluate
+ * @returns The result of the evaluation. Corresponds to the result 
+ * of the last Expression or Statement in the loop, or a break/break return
+ */
+function loop(expr: While): Value {
+    let return_value: Value = null;
     enter_frame(expr.name);
     while(is_truthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
+
         if (should_break != false) {
             if (is_empty(frames)) {
                 should_break = false;
                 return return_value;
             }
+            // Break either once if no label or until the label matches the current loop's label
             if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
-            pop_frame();
-            return return_value;
+            break;
         }
     }
-    exit_frame();
+    pop_frame();
     return return_value;
 }
 
+/**
+ * Evaluates a function call
+ * @param call The Call expression to evaluate
+ * @returns The result of the call.
+ * @throws Throws an error if the identifier can't be found in the current scope,
+ * if trying to call something that isn't a function binding or if there is no function
+ * with the right number of arguments declared
+ */
 function call(call: Call): Value {
     // must lookup outside of lookup function otherwise we have to rebuild the entire system
     // with bindings instead instead of values so that we can pass along bindings
@@ -478,10 +569,14 @@ function call(call: Call): Value {
             break;
         }
     }
-    exit_frame();
+    pop_frame();
     return return_value
 }
 
+/**
+ * Pops the top Frame off the frame stack
+ * @returns The top Frame, or undefined if the stack is empty
+ */
 function pop_frame(): Frame | undefined {
     if (is_empty(frames)) {
         return undefined;
@@ -491,28 +586,28 @@ function pop_frame(): Frame | undefined {
     return frame;
 }
 
+/**
+ * Pushes a Frame onto the frame stack
+ * @param frame The Frame to push
+ */
 function push_frame(frame: Frame) {
     frames = push(frame, frames);
 }
 
+/**
+ * Pushes an empty Frame with an optional label onto the frame stack
+ * @param label The label of the Frame, or null for none
+ */
 function enter_frame(label: string | null) {
     const frame: Frame = empty_frame();
     frame.label = label;
     push_frame(frame);
 }
 
-function exit_frame() {
-    if (is_empty(frames)) {
-        push_frame(empty_frame());
-        return;
-    }
-    frames = pop(frames);
-
-    if (is_empty(frames)) {
-        push_frame(empty_frame());
-    }
-}
-
+/**
+ * Creates an empty Frame with default settings
+ * @returns An empty Frame
+ */
 function empty_frame(): Frame {
     return {
         label: null,
@@ -520,6 +615,11 @@ function empty_frame(): Frame {
     };
 }
 
+/**
+ * Finds a Frame in the frame stack by label
+ * @param label The label to look for
+ * @returns The matching Frame if found, undefined otherwise
+ */
 function frame_by_label(label: string): Frame | undefined {
     let temp_stack = frames;
     while(!is_empty(temp_stack)) {
@@ -531,13 +631,18 @@ function frame_by_label(label: string): Frame | undefined {
     }
 }
 
-function break_loop(expr: Break) {
+/**
+ * Interprets a Break statement and sets the corresponding break flag
+ * @param statement The Break statement
+ * @throws Throws an error if trying to break from outside a block/loop, or if the label doesn't exist
+ */
+function break_loop(statement: Break) {
     if (is_empty(frames) || is_empty(pop(frames))) {
         // If there aren't at least 2 frames on the stack we can't be inside a block, so we don't allow breakin
-        throw error_with_length(ErrorKind.RuntimeError, "Can only break from inside a block or loop", expr.index, 1);
+        throw error_with_length(ErrorKind.RuntimeError, "Can only break from inside a block or loop", statement.index, 1);
     }
-    if (expr.label != null && frame_by_label(expr.label) === undefined) {
-        throw error_with_length(ErrorKind.RuntimeError, "Break label '" + expr.label + "' doesn't exist", expr.index, expr.label.length);
+    if (statement.label != null && frame_by_label(statement.label) === undefined) {
+        throw error_with_length(ErrorKind.RuntimeError, "Break label '" + statement.label + "' doesn't exist", statement.index, statement.label.length);
     }
-    should_break = expr.label == null ? true : expr.label;
+    should_break = statement.label == null ? true : statement.label;
 }

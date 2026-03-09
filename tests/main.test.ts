@@ -141,6 +141,10 @@ describe("Loops", () => {
         const s = "loop: a { loop: b { break: a return true; } false }";
         expect(interpret_source(s)).toBe(true);
     });
+    test("Break only breaks the loop in which it's contained", () => {
+        const s = "var x = false; loop { loop { break; } x = true; break; }; x";
+        expect(interpret_source(s)).toBe(true);
+    });
     test("While", () => {
         const s = "var x = 0; while x < 10 { x = x + 1; }; x";
         expect(interpret_source(s)).toBe(10);
