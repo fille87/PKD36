@@ -89,7 +89,28 @@ describe("Interpret unary operators", () => {
     });
 });
 
-
+describe("Declaration and assignment", () => {
+    test("Declare but don't initialize", () => {
+        const s = "var x;";
+        expect(interpret_source("test", s)).toBe(null);
+    });
+    test("Initialize", () => {
+        const s = "var x = 3;";
+        expect(interpret_source("test", s)).toBe(null);
+    });
+    test("Read variable", () => {
+        const s = "var x = true; x";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("Declare then assign", () => {
+        const s = "var x; x = true; x";
+        expect(interpret_source("test", s)).toBe(true);
+    });
+    test("Redeclare", () => {
+        const s = "var x = true; var x = false; x";
+        expect(interpret_source("test", s)).toBe(false);
+    });
+});
 
 describe("Loops", () => {
     test("Break with no return", () => {
@@ -238,6 +259,10 @@ describe("Errors", () => {
     });
     test("Breaking from outside a block", () => {
         const s = "break;";
+        expect(has_errors(interpret_source("test", s))).toBe(true);
+    });
+    test("Returning from outside a function", () => {
+        const s = "return 1;";
         expect(has_errors(interpret_source("test", s))).toBe(true);
     });
     test("Reading uninitialized variable", () => {
