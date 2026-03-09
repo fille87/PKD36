@@ -1,15 +1,21 @@
 import {
-    Expression, Literal, Unary, Binary, Operation, Operator, Value,
-    Grouping,
+    Expression, Literal, Unary, Binary, Value,
     UnaOperator,
     BinOperator,
     get_sign,
     Statement,
     Block,
-    Break,
     Variable,
     ReturnStatement,
     VariableDec,
+    Print,
+    FunctionDec,
+    Assignment,
+    ExpressionStatement,
+    If,
+    Logic,
+    While,
+    Call,
 } from"../lib/types";
 import {
     TokenType,
@@ -18,24 +24,21 @@ import {
 } from "./scanner"
 import {
     UntypescriptError,
-    error_with_length,
     ErrorKind,
+    error_with_length,
     has_errors,
     error_with_token,
 } from "./error";
 
-//class ParseError extends globalThis.Error {}
-
-
 export type Parser = {
-    latest_was_expression: boolean;
     input: Array<Token>,
     output: Array<Expression | Statement>,
     errors: Array<UntypescriptError>,
     has_error: boolean,
     current: number,
     end: number
-
+    latest_was_expression: boolean,
+    allow_return_statement: boolean,
 }
 
 export type ParserResult = Array<Expression | Statement> | Array<UntypescriptError>;
@@ -56,6 +59,7 @@ export function parse(tokens: Array<Token>): Parser {
         has_error: false,
         current: 0,
         latest_was_expression: false,
+        allow_return_statement: false,
         end: tokens.length - 1
     }
     function at_end(): boolean{
@@ -99,7 +103,6 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_statement(): Expression | Statement {
         if (parser.latest_was_expression) {
-            // throw new UntypescriptError(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", peek().index);
             throw error_with_token(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", previous());
         }
         parser.latest_was_expression = false;
@@ -173,7 +176,9 @@ export function parse(tokens: Array<Token>): Parser {
             };
         }
         if (match (TokenType.RETURN)) {
+            parser.allow_return_statement = true;
             ret_val = (parse_return() as ReturnStatement).expression;
+            parser.allow_return_statement = false;
             return {
                 type: "Break",
                 index,
@@ -222,7 +227,9 @@ export function parse(tokens: Array<Token>): Parser {
         }
         consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
         if(match(TokenType.LEFT_BRACE)) {
+            parser.allow_return_statement = true;
             const body: Block = parse_block() as Block;
+            parser.allow_return_statement = false;
             return make_fn(name, parameters, body, index);
         }
 
@@ -231,6 +238,9 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_return(): Statement {
         const index: number = previous().index;
+        if (!parser.allow_return_statement) {
+            throw error_with_token(ErrorKind.ParseError, "Return statement must be inside a function declaraction or as part of a break statement", peek());
+        }
         const expr: Expression = parse_expression();
         consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
         return make_return(expr, index);
@@ -331,23 +341,23 @@ export function parse(tokens: Array<Token>): Parser {
     }
 
     function parse_term(): Expression {
-        let term: Expression = parse_factor(); // Left handside of the expression
-        while(match(TokenType.PLUS, TokenType.MINUS)){ // If plus or minus
+        let term: Expression = parse_factor();
+        while(match(TokenType.PLUS, TokenType.MINUS)){
             const index = previous().index;
             const operator: BinOperator = get_sign(previous()) as BinOperator
-            const right: Expression  = parse_factor(); // right hand side of the expression
-            term = make_binary(operator, term, right, index); // make AST
+            const right: Expression  = parse_factor();
+            term = make_binary(operator, term, right, index);
         }
         return term;
     }
 
     function parse_factor(): Expression {
-        let fact: Expression = parse_exponent(); // Left handside of the expression
-        while(match(TokenType.TIMES, TokenType.DIVIDE)) { // If / or *
+        let fact: Expression = parse_exponent();
+        while(match(TokenType.TIMES, TokenType.DIVIDE)) {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
-            const right: Expression  = parse_exponent(); // right hand side of the expression
-            fact = make_binary(operator, fact, right, index) // make AST
+            const right: Expression  = parse_exponent();
+            fact = make_binary(operator, fact, right, index);
         }
         return fact;
     }
@@ -358,7 +368,7 @@ export function parse(tokens: Array<Token>): Parser {
             const index: number = previous().index; 
             const operator: BinOperator = get_sign(previous()) as BinOperator;
             const exponent: Expression  = parse_unary();
-            base = make_binary(operator, base, exponent, index)
+            base = make_binary(operator, base, exponent, index);
         }
         return base;
     }
@@ -368,7 +378,7 @@ export function parse(tokens: Array<Token>): Parser {
             const index: number = previous().index;
             const operator: UnaOperator = get_sign(previous()) as UnaOperator;
             const operand: Expression = parse_unary();
-            return make_unary(operator, operand, index)
+            return make_unary(operator, operand, index);
         }
         return parse_call();
     }
@@ -400,7 +410,7 @@ export function parse(tokens: Array<Token>): Parser {
                 args.push(parse_expression())
             } while (match(TokenType.COMMA))
         }
-        const token: Token = consume(TokenType.RIGHT_PAREN, "Expected ) after call")
+        consume(TokenType.RIGHT_PAREN, "Expected ) after call");
         return make_call(callee, args, index)
     }
 
@@ -489,7 +499,7 @@ function make_binary(operator: BinOperator, left: Expression,
     }
 }
 
-function make_print(expr: Expression, index: number): Statement {
+function make_print(expr: Expression, index: number): Print {
     return {
         type: "Print",
         index,
@@ -507,7 +517,7 @@ function make_var(name:string, initialiser: Expression | null, index: number, id
     }
 }
 
-function make_fn(name:string, params:Array<string>, body: Block, index:number): Statement {
+function make_fn(name:string, params:Array<string>, body: Block, index:number): FunctionDec {
     return {
         type: "Function_declaration",
         index,
@@ -517,7 +527,7 @@ function make_fn(name:string, params:Array<string>, body: Block, index:number): 
     }
 }
 
-function make_return(expression: Expression, index: number): Statement {
+function make_return(expression: Expression, index: number): ReturnStatement {
     return {
     type: "Return",
     index,
@@ -525,7 +535,7 @@ function make_return(expression: Expression, index: number): Statement {
 }
 }
 
-function make_variable(name: string, index: number): Expression {
+function make_variable(name: string, index: number): Variable {
     return {
         type: "Variable", 
         index,
@@ -533,7 +543,7 @@ function make_variable(name: string, index: number): Expression {
     }
 }
 
-function make_assignment(name: string, value: Expression, index: number): Expression {
+function make_assignment(name: string, value: Expression, index: number): Assignment {
     return {
         type: "Assignment",
         index,
@@ -542,7 +552,7 @@ function make_assignment(name: string, value: Expression, index: number): Expres
     }
 }
 
-function make_block(body: Array<Expression | Statement>, index: number): Expression {
+function make_block(body: Array<Expression | Statement>, index: number): Block {
     return {
     type: "Block",
     label: null, // TODO: Add support for labels
@@ -551,7 +561,7 @@ function make_block(body: Array<Expression | Statement>, index: number): Express
     }
 }
 
-function make_expression_statement(expression:Expression, index: number): Statement {
+function make_expression_statement(expression:Expression, index: number): ExpressionStatement {
     return {
         type: "Expression_statement",
         index,
@@ -559,7 +569,7 @@ function make_expression_statement(expression:Expression, index: number): Statem
     }
 }
 
-function make_if(condition: Expression, if_then:Expression, if_else:Expression | null, index:number): Expression {
+function make_if(condition: Expression, if_then:Expression, if_else:Expression | null, index:number): If {
     return {
         type: "If",
         index,
@@ -569,7 +579,7 @@ function make_if(condition: Expression, if_then:Expression, if_else:Expression |
     }
 }
 
-function make_logic(right:Expression, operator: "or" | "and", left:Expression, index:number): Expression {
+function make_logic(right:Expression, operator: "or" | "and", left:Expression, index:number): Logic {
     return {
         type: "Logic",
         index,
@@ -579,7 +589,7 @@ function make_logic(right:Expression, operator: "or" | "and", left:Expression, i
     }
 }
 
-function make_while(condition: Expression, body: Block, name: string | null, index: number): Expression {
+function make_while(condition: Expression, body: Block, name: string | null, index: number): While {
     return {
         type: "While",
         index,
@@ -589,7 +599,7 @@ function make_while(condition: Expression, body: Block, name: string | null, ind
     }
 }
 
-function make_call(callee:Variable, args:Array<Expression>, index:number): Expression {
+function make_call(callee:Variable, args:Array<Expression>, index:number): Call {
     return {
         type: "Call",
         index,

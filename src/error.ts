@@ -1,5 +1,4 @@
-import { Token, token_length, TokenType } from "./scanner";
-import { get_sign } from "../lib/types";
+import { Token, token_length } from "./scanner";
 
 export class UntypescriptError extends Error {
     kind: ErrorKind;
@@ -31,12 +30,6 @@ export function error_with_token(kind: ErrorKind, message: string, token: Token)
     return e;
 }
 
-export function syntax_error(message: string, token: Token) {
-    const e = new UntypescriptError(ErrorKind.SyntaxError, message, token.index);
-    e.length = length;
-    return e;
-}
-
 export enum ErrorKind {
     ParseError,
     SyntaxError,
@@ -54,16 +47,18 @@ type Line = {
 }
 
 /**
- * Checks if an array is an array of Errors
- * @param result The array to check
- * @returns True if there are any errors, false otherwise
+ * Checks if something is an array of UntypescriptErrors
+ * @param result What to check
+ * @returns True if it's an array of errors, false otherwise
  */
-export function has_errors<T>(ts: Array<T> | Array<UntypescriptError>): ts is Array<UntypescriptError> {
-    if(ts.length === 0) {
+export function has_errors<T>(e: T | Array<UntypescriptError>): e is Array<UntypescriptError> {
+    if (!Array.isArray(e)) {
         return false;
     }
-    const first = ts[0];
-    return is_error(first);
+    if(e.length === 0) {
+        return false;
+    }
+    return e.every((element) => is_error(element));
 }
 
 export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {

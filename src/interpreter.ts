@@ -15,17 +15,14 @@ import {
     If,
     Call,
     FunctionBinding,
-    Logic,
-    get_sign
-} from"../lib/types";
+    Logic} from"../lib/types";
 import {
     UntypescriptError,
     ErrorKind,
     error_with_length,
-    error_with_token,
 } from "./error";
 import { ph_empty, ph_insert, ph_lookup } from "../lib/hashtables";
-import { Stack, empty as empty_stack, push, top, pop, is_empty } from "../lib/stack";
+import { Stack, empty as empty_stack, push, top, pop, is_empty, display_stack } from "../lib/stack";
 
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
@@ -96,7 +93,6 @@ function evaluate(expr: Expression): Value {
         case "Assignment":
             return assign(expr);
     }
-    return null; //seems neccesary but have to check
 }
 
 // Returns the value of the literal expression
@@ -122,18 +118,6 @@ function unary(expr: Unary) {
             }
             return -operand;
     }
-}
-
-// Checks if the operand is a number
-function checkNumberOperand(expr: Unary) {
-    if (Object(expr.operand) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operand must be a number.", expr.index); //Change to connect to error module
-}
-
-// Checks if the operands are numbers
-function checkNumberOperands(expr: Binary) {
-    if (Object(expr.left) instanceof Number && Object(expr.right) instanceof Number) return;
-    throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " Operands must be numbers.", expr.index); //Change to connect to error module
 }
 
 // Returns true for all value type Value, except for "null" and "false"
@@ -242,8 +226,10 @@ function block(block: Block): Value | null {
     enter_frame(null);
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
-        if (should_break === true || typeof should_break === "string" || should_return) {
-            should_return = false;
+        if (should_break === true || typeof should_break === "string") {
+            if (should_break === block.label) {
+                should_break = false;
+            }
             break;
         }
     }
@@ -450,7 +436,6 @@ function call(call: Call): Value {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            //push_frame(frame);
             break;
         }
     }
@@ -497,9 +482,6 @@ function call(call: Call): Value {
     return return_value
 }
 
-
-
-
 function pop_frame(): Frame | undefined {
     if (is_empty(frames)) {
         return undefined;
@@ -538,6 +520,24 @@ function empty_frame(): Frame {
     };
 }
 
+function frame_by_label(label: string): Frame | undefined {
+    let temp_stack = frames;
+    while(!is_empty(temp_stack)) {
+        const frame = top(temp_stack);
+        if (frame.label === label) {
+            return frame;
+        }
+        temp_stack = pop(temp_stack);
+    }
+}
+
 function break_loop(expr: Break) {
+    if (is_empty(frames) || is_empty(pop(frames))) {
+        // If there aren't at least 2 frames on the stack we can't be inside a block, so we don't allow breakin
+        throw error_with_length(ErrorKind.RuntimeError, "Can only break from inside a block or loop", expr.index, 1);
+    }
+    if (expr.label != null && frame_by_label(expr.label) === undefined) {
+        throw error_with_length(ErrorKind.RuntimeError, "Break label '" + expr.label + "' doesn't exist", expr.index, expr.label.length);
+    }
     should_break = expr.label == null ? true : expr.label;
 }

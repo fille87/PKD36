@@ -1,4 +1,4 @@
-import { UntypescriptError, ErrorKind, syntax_error } from "./error";
+import { UntypescriptError, ErrorKind } from "./error";
 import { ph_lookup, ph_empty, ph_insert, ProbingHashtable } from "../lib/hashtables";
 import { get_sign } from "../lib/types";
 

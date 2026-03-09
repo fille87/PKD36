@@ -1,7 +1,8 @@
 import { readFileSync } from "fs";
-import { exit } from "process";
+import { exit, cwd } from "process";
 import { interpret_source } from "./interpret_source";
 import { resolve } from "path";
+import { has_errors, init as error_display_init } from "./error";
 
 const source_file = process.argv[2];
 if (source_file === undefined) {
@@ -9,16 +10,22 @@ if (source_file === undefined) {
     exit(1);
 }
 
-const path = resolve(__dirname, source_file);
 let source: string;
+let path: string;
 
 try {
+    path = resolve(cwd(), source_file);
     source = readFileSync(path, "utf8");
 } catch {
-    console.log("Failed to open file '" + path + "'");
+    console.log("Failed to open file '" + source_file + "'");
     exit(1);
 }
 
-interpret_source(path, source);
+const result = interpret_source(source);
+if (has_errors(result)) {
+    const display_errors = error_display_init(source);
+    display_errors(result);
+    exit(1);
+}
 
 exit(0);

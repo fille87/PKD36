@@ -1,36 +1,32 @@
-import { init as error_display_init, has_errors, UntypescriptError } from "./error";
+import { has_errors, UntypescriptError } from "./error";
 import { scan, Token } from "./scanner";
-import { basename } from "path";
-import { exit } from "process";
 import { parse_tokens } from "./parser";
 import { interpret_results } from "./interpreter";
 import { Value } from "../lib/types";
 
-export function interpret_source(path: string, source: string): Value {
-    const display_errors = error_display_init(source);
-
+/**
+ * Interpret a string of untypescript source code
+ * @param source The source code to interpret
+ * @returns The return value of the program if successful, 
+ * otherwise returns all the encountered errors
+ */
+export function interpret_source(source: string): Value | Array<UntypescriptError> {
     const res = scan(source);
-
     if (has_errors(res)){
-        console.log("Could not parse source file '" + basename(path) + "'!\n");
-        display_errors(res);
-        exit(1);
+        return res;
     }
 
     const parsed = parse_tokens(res as Array<Token>);
-
     if (has_errors(parsed)){
-        console.log("Could not parse source file '" + basename(path) + "'!\n");
-        display_errors(parsed);
-        exit(1);
+        return parsed;
     }
-
 
     try {
         return interpret_results(parsed);
     } catch (e) {
+        // Safety: We only ever intentionally throw UntypescriptErrors, 
+        // and if some other error occurs something's gone very wrong and we should probably crash anyway
         const error = e as UntypescriptError;
-        display_errors([error]);
-        exit(1);
+        return [error];
     }
 }
