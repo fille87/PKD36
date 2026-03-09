@@ -226,8 +226,10 @@ function block(block: Block): Value | null {
     enter_frame(null);
     for (let i = 0; i < block.body.length; i += 1) {
         return_value = interpret(block.body[i]);
-        if (should_break === true || typeof should_break === "string" || should_return) {
-            should_return = false;
+        if (should_break === true || typeof should_break === "string") {
+            if (should_break === block.label) {
+                should_break = false;
+            }
             break;
         }
     }
@@ -434,7 +436,6 @@ function call(call: Call): Value {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            //push_frame(frame);
             break;
         }
     }

@@ -28,7 +28,8 @@ import {
 
 
 export type Parser = {
-    latest_was_expression: boolean;
+    latest_was_expression: boolean,
+    allow_return_statement: boolean,
     input: Array<Token>,
     output: Array<Expression | Statement>,
     errors: Array<UntypescriptError>,
@@ -56,6 +57,7 @@ export function parse(tokens: Array<Token>): Parser {
         has_error: false,
         current: 0,
         latest_was_expression: false,
+        allow_return_statement: false,
         end: tokens.length - 1
     }
     function at_end(): boolean{
@@ -173,7 +175,9 @@ export function parse(tokens: Array<Token>): Parser {
             };
         }
         if (match (TokenType.RETURN)) {
+            parser.allow_return_statement = true;
             ret_val = (parse_return() as ReturnStatement).expression;
+            parser.allow_return_statement = false;
             return {
                 type: "Break",
                 index,
@@ -222,7 +226,9 @@ export function parse(tokens: Array<Token>): Parser {
         }
         consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
         if(match(TokenType.LEFT_BRACE)) {
+            parser.allow_return_statement = true;
             const body: Block = parse_block() as Block;
+            parser.allow_return_statement = false;
             return make_fn(name, parameters, body, index);
         }
 
@@ -231,6 +237,9 @@ export function parse(tokens: Array<Token>): Parser {
 
     function parse_return(): Statement {
         const index: number = previous().index;
+        if (!parser.allow_return_statement) {
+            throw error_with_token(ErrorKind.ParseError, "Return statement must be inside a function declaraction or as part of a break statement", peek());
+        }
         const expr: Expression = parse_expression();
         consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
         return make_return(expr, index);
