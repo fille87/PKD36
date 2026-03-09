@@ -1,13 +1,9 @@
 import {
-    Expression, Literal, Unary, Binary, Operation, Operator, Value,
+    Expression, Literal, Unary, Binary, Value,
     Grouping,
-    UnaOperator,
-    BinOperator,
     Statement,
-    get_sign,
     Block,
     Assignment,
-    VariableDec,
     Declaration,
     FunctionDec,
     Frame,
@@ -18,31 +14,19 @@ import {
     Break,
     If,
     Call,
-    FunctionBinding
+    FunctionBinding,
+    Logic,
+    get_sign
 } from"../lib/types";
-
-import {
-    Token,
-    TokenType
-} from "./scanner";
-
 import {
     UntypescriptError,
     ErrorKind,
-    is_error
+    error_with_length,
+    error_with_token,
 } from "./error";
-import { ch_empty, ch_insert, ch_lookup, ChainingHashtable, ph_delete, ph_empty, ph_insert, ph_keys, ph_lookup, ProbingHashtable } from "../lib/hashtables";
-import { Stack, empty as empty_stack, push, top, pop, NonEmptyStack, is_empty, display_stack } from "../lib/stack";
+import { ph_empty, ph_insert, ph_lookup } from "../lib/hashtables";
+import { Stack, empty as empty_stack, push, top, pop, is_empty } from "../lib/stack";
 
-// let hadRuntimeError: boolean = false;
-
-// function runtimeError(RunError: string) {
-//     // console.log(RunError.getMessage() +
-//     //     "\n[line " + RunError.token.line + "]");
-//     hadRuntimeError = true;
-//     throw new
-//   }
-//
 const DEFAULT_VARIABLE_SLOTS = 50;
 const HASH_FUNCTION = (str: string) => str.charCodeAt(0);
 const GLOBALS: Frame = empty_frame();
@@ -60,7 +44,6 @@ export function interpret_results(res: Array<Expression | Statement>): Value {
 
 // Runs the interpreter
 export function interpret(expr: Expression | Statement): Value { 
-
     switch (expr.type) {
         case "Return":
             should_return = true;
@@ -70,9 +53,6 @@ export function interpret(expr: Expression | Statement): Value {
             return null;
         case "Expression_statement":
             evaluate(expr.expression);
-            return null;
-        case "Assignment":
-            assign(expr);
             return null;
         case "Variable_declaration":
             declare(expr as Declaration);
@@ -101,16 +81,20 @@ function evaluate(expr: Expression): Value {
             return unary(expr);
         case "Binary":
             return binary(expr);
+        case "Logic":
+            return logic(expr);
         case "Block":
             return block(expr);
         case "While":
             return loop(expr);
         case "Variable":
-            return lookup(expr);
+            return get_variable_value(expr);
         case "If":
             return conditional(expr);
         case "Call":
             return call(expr);
+        case "Assignment":
+            return assign(expr);
     }
     return null; //seems neccesary but have to check
 }
@@ -242,6 +226,17 @@ function binary(expr: Binary) {
     }
 }
 
+function logic(expr: Logic): boolean {
+    const left: Value | null = evaluate(expr.left);
+    const right: Value | null = evaluate(expr.right); 
+    switch (expr.operator) {
+        case "or":
+            return is_truthy(left) || is_truthy(right);
+        case "and":
+            return is_truthy(left) && is_truthy(right);
+    }
+}
+
 function block(block: Block): Value | null {
     let return_value: Value | null = null;
     enter_frame(null);
@@ -266,10 +261,9 @@ function conditional(expr: If): Value | null {
     return null;
 }
 
-function lookup(expr: {name: string, index: number}): Value {
-    const error = new UntypescriptError(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index);
+function lookup(expr: {name: string, index: number}): Binding | undefined {
     if (is_empty(frames)) {
-        throw error;
+        return undefined;
     }
     let temp_stack = empty_stack<Frame>();
     let res: Binding | undefined;
@@ -289,10 +283,15 @@ function lookup(expr: {name: string, index: number}): Value {
             break;
         }
     }
+    return res;
+}
+
+function get_variable_value(expr: {name: string, index: number}): Value {
+    const res = lookup(expr);
     if (res === undefined) {
-        throw error;
+        throw error_with_length(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index, expr.name.length);
     }
-    // Cant assign so best we can do is return name of function
+
     if(Array.isArray(res)){
         return `<fn ${expr.name}>`
     }
@@ -302,16 +301,22 @@ function lookup(expr: {name: string, index: number}): Value {
         case "Uninitialized":
             throw new UntypescriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
     }
+
 }
 
 function declare(expr: Declaration): void {
     let frame: Frame | undefined;
+    let existing: Binding | undefined;
     switch(expr.type) {
-        
         case "Variable_declaration":
             frame = pop_frame();
             if (frame === undefined) {
                 frame = empty_frame();
+            }
+            existing = ph_lookup(frame.vars, expr.name);
+            if (existing && Array.isArray(existing)) {
+                // We don't want to allow overwriting a function identifier in the same scope with an arbitrary value
+                throw error_with_length(ErrorKind.RuntimeError, "Cannot overwrite function identifier '" + expr.name + "' in the same scope", expr.identifier_index, expr.name.length);
             }
             // Put the frame back before evaluating the initialiser
             push_frame(frame);
@@ -328,7 +333,7 @@ function declare(expr: Declaration): void {
             if (frame === undefined) {
                 frame = empty_frame();
             }
-            const existing = ph_lookup(frame.vars, expr.name);
+            existing = ph_lookup(frame.vars, expr.name);
             const function_dec: FunctionDec = expr;
             const fn: FunctionBinding = {
                 type: "Function_Binding",
@@ -365,8 +370,9 @@ function declare(expr: Declaration): void {
 }
 
 function assign(expr: Assignment) {
-    if (lookup(expr) === undefined) {
-        throw new UntypescriptError(ErrorKind.RuntimeError, "Cannot assign to variable '" + expr.name + "' before it is declared", expr.index);
+    const res = lookup(expr); // This will throw an error if not already declared
+    if (Array.isArray(res)) {
+        throw error_with_length(ErrorKind.RuntimeError, "Cannot assign value to function identifier '" + expr.name + "'", expr.index, expr.name.length);
     }
     let frame: Frame;
     let temp_stack = empty_stack<Frame>();
@@ -389,15 +395,17 @@ function assign(expr: Assignment) {
                 temp_stack = pop(temp_stack);
                 push_frame(temp);
             }
-            return;
+            return binding.value;
         } else {
             temp_stack = push(frame, temp_stack);
         }
     }
+    return null;
 }
 
 function loop(expr: While): Value | null {
     let return_value: Value | null = null;
+    enter_frame(expr.name);
     while(is_truthy(evaluate(expr.condition))) {
         return_value = interpret(expr.body);
         if (should_break != false) {
@@ -408,10 +416,11 @@ function loop(expr: While): Value | null {
             if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
-             //pop_frame();
+            pop_frame();
             return return_value;
         }
     }
+    exit_frame();
     return return_value;
 }
 

@@ -1,12 +1,10 @@
-// export type UntypescriptError = {
-//     kind: ErrorKind,
-//     message: string,
-//     index: number,
-// }
+import { Token, token_length, TokenType } from "./scanner";
+import { get_sign } from "../lib/types";
 
 export class UntypescriptError extends Error {
     kind: ErrorKind;
     index: number;
+    length?: number;
 
     constructor(kind: ErrorKind, message: string, index: number) {
         super(message);
@@ -19,6 +17,24 @@ export class UntypescriptError extends Error {
         //This line slow (or so i've read) but it forces js to recognize UntypescriptError.
         Object.setPrototypeOf(this, UntypescriptError.prototype);
     }
+}
+
+export function error_with_length(kind: ErrorKind, message: string, index: number, length: number) {
+    const e = new UntypescriptError(kind, message, index);
+    e.length = length;
+    return e;
+}
+
+export function error_with_token(kind: ErrorKind, message: string, token: Token) {
+    const e = new UntypescriptError(kind, message, token.index);
+    e.length = token_length(token);
+    return e;
+}
+
+export function syntax_error(message: string, token: Token) {
+    const e = new UntypescriptError(ErrorKind.SyntaxError, message, token.index);
+    e.length = length;
+    return e;
 }
 
 export enum ErrorKind {
@@ -48,7 +64,6 @@ export function has_errors<T>(ts: Array<T> | Array<UntypescriptError>): ts is Ar
     }
     const first = ts[0];
     return is_error(first);
-    // return first instanceof UntypescriptError;
 }
 
 export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
@@ -77,9 +92,9 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
         }
     }
 
-    function make_pointer(line: Line, index: number): string {
+    function make_pointer(line: Line, index: number, length?: number): string {
         const position = index - line.start_index;
-        return "".padStart(position, " ") + "^ Here";
+        return "".padStart(position, " ") + "^".repeat(length === undefined ? 1 : length) + " Here";
     }
 
     function display_errors(es: Array<UntypescriptError>) {
@@ -98,18 +113,18 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
         const previous = lines[line.line_number - 1];
         const next = lines[line.line_number + 1];
 
-        const margin_width = line.line_number.toString().length + 2; // One trailing space plus |
+        const margin_width = (line.line_number + 1).toString().length + 2; // One trailing space plus |
         const indentation = " ".repeat(4);
-        const margin = "|".padStart(margin_width) + indentation;
+        const margin = (s: string) => s + "|".padStart(margin_width - s.toString().length) + indentation;
 
         console.log("Error: " + e.message);
         if (previous != undefined && previous.length != 0) {
-            console.log((line.line_number - 1).toString() + " |" + indentation + previous);
+            console.log(margin((line.line_number - 1).toString()) + previous);
         }
         console.log(line.line_number.toString() + " |" + indentation + line.source);
-        console.log(margin + make_pointer(line, e.index))
+        console.log(margin("") + make_pointer(line, e.index, e.length))
         if (next != undefined && next.length != 0) {
-            console.log((line.line_number + 1).toString() + " |" + indentation + next);
+            console.log(margin((line.line_number + 1).toString()) + next);
         }
         console.log();
     }

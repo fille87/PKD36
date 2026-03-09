@@ -1,0 +1,73 @@
+\begin{grammar}
+
+<Program> ::= (<Statement> | <Block>)* <Expression>?
+
+<Statement> ::= <VarDecl>
+              \alt <FunctionDecl>
+              \alt <ReturnStmt>
+              \alt <PrintStmt>
+              \alt <BreakStmt>
+              \alt <ExpressionStmt>
+
+<VarDecl> ::= "var" IDENTIFIER ("=" <Expression>)? ";"
+
+<FunctionDecl> ::= "fn" IDENTIFIER "(" <Parameters>? ")" <Block>
+
+<Parameters> ::= IDENTIFIER ("," IDENTIFIER)*
+
+<ReturnStmt> ::= "return" <Expression> ";"
+
+<PrintStmt> ::= "print" <Expression> ";"
+
+<ExpressionStmt> ::= <Expression> ";"
+
+<Expression> ::= <WhileExpr>
+               \alt <LoopExpr>
+               \alt <IfExpr>
+               \alt <Block>
+               \alt <Assignment>
+
+<WhileExpr> ::= "while" <Expression> (":" IDENTIFIER)? <Block>
+
+<LoopExpr> ::= "loop" (":" IDENTIFIER)? <Block>
+
+<IfExpr> ::= "if" <Expression> <Expression> ("else" <Expression>)?
+
+<BreakStmt> ::= "break" (: IDENTIFIER)? ("return" <Expression>)? ";"
+
+<Block> ::= "{" (<Statement> | <Block>)* <Expression>? "}"
+
+<Assignment> ::= IDENTIFIER "=" <Expression>
+               \alt <LogicOr>
+
+<LogicOr> ::= <LogicAnd> ("or" <LogicAnd>)*
+
+<LogicAnd> ::= <Equality> ("and" <Equality>)*
+
+<Equality> ::= <Comparison> (("==" | "!=") <Comparison>)*
+
+<Comparison> ::= <Term> (("<" | "<=" | ">" | ">=") <Term>)*
+
+<Term> ::= <Factor> (("+" | "-") <Factor>)*
+
+<Factor> ::= <Exponent> (("*" | "/") <Exponent>)*
+
+<Exponent> ::= <Unary> ("**" <Exponent>)*
+
+<Unary> ::= ("-" | "!") <Unary>
+          \alt <Call>
+
+<Call> ::= <Primary> ("(" <Arguments>? ")")*
+
+<Arguments> ::= <Expression> ("," <Expression>)*
+
+<Primary> ::= NUMBER
+            \alt STRING
+            \alt "true"
+            \alt "false"
+            \alt "null"
+            \alt IDENTIFIER
+            \alt "(" <Expression> ")"
+
+
+\end{grammar}

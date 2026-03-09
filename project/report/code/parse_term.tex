@@ -1,0 +1,18 @@
+
+\begin{algorithm}
+\caption{parse\_term}
+\KwResult{An expression AST node}
+
+$term \gets$ parse\_factor()\;
+
+\While{next token is $+$ or $-$}{
+    $index \gets$ previous token index\;
+    $operator \gets$ sign(previous token)\;
+    
+    $right \gets$ parse\_term()\;
+
+    \Return make\_binary($operator$, $term$, $right$, $index$)\;
+}
+
+\Return $term$\;
+\end{algorithm}
