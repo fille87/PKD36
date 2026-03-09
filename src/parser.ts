@@ -23,7 +23,7 @@ import {
     token_length,
 } from "./scanner"
 import {
-    UntypescriptError,
+    UntypedscriptError,
     ErrorKind,
     error_with_length,
     has_errors,
@@ -33,7 +33,7 @@ import {
 export type Parser = {
     input: Array<Token>,
     output: Array<Expression | Statement>,
-    errors: Array<UntypescriptError>,
+    errors: Array<UntypedscriptError>,
     has_error: boolean,
     current: number,
     end: number
@@ -41,7 +41,7 @@ export type Parser = {
     allow_return_statement: boolean,
 }
 
-export type ParserResult = Array<Expression | Statement> | Array<UntypescriptError>;
+export type ParserResult = Array<Expression | Statement> | Array<UntypedscriptError>;
 
 /**
  * Helper function that returns errors if needed else normal parsing output 
@@ -197,7 +197,7 @@ export function parse(tokens: Array<Token>): Parser {
                 return_expr: ret_val,
             }
         }
-        throw new UntypescriptError(ErrorKind.MissingToken, "Expected 'return', ';' or ':' after break", index);
+        throw new UntypedscriptError(ErrorKind.MissingToken, "Expected 'return', ';' or ':' after break", index);
     }
 
     function parse_print(): Statement {
@@ -287,7 +287,7 @@ export function parse(tokens: Array<Token>): Parser {
             } catch (e) {
                 parser.has_error = true
                 parser.latest_was_expression = false;
-                parser.errors.push(e as UntypescriptError);
+                parser.errors.push(e as UntypedscriptError);
                 synchronize();
             }
         }
@@ -399,7 +399,7 @@ export function parse(tokens: Array<Token>): Parser {
         while (true) {
             if(match(TokenType.LEFT_PAREN)){
                 if(expr.type !== "Variable"){
-                    throw new UntypescriptError(
+                    throw new UntypedscriptError(
                         ErrorKind.UnexpectedToken,
                         "Call must be done on identifier",
                         expr.index)
@@ -440,7 +440,7 @@ export function parse(tokens: Array<Token>): Parser {
             consume(TokenType.RIGHT_PAREN, 'Expected ")" after expression, got:"' + get_sign(peek()) + '"')
             return expr;
         }
-        throw new UntypescriptError(ErrorKind.UnexpectedToken, "Expected an expression", index);
+        throw new UntypedscriptError(ErrorKind.UnexpectedToken, "Expected an expression", index);
     }
 
     function synchronize(): void {
@@ -473,7 +473,7 @@ export function parse(tokens: Array<Token>): Parser {
         } catch (e) {
             parser.has_error = true
             parser.latest_was_expression = false;
-            parser.errors.push(e as UntypescriptError);
+            parser.errors.push(e as UntypedscriptError);
             synchronize();
         }
     }

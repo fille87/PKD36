@@ -1,0 +1,22 @@
+\begin{algorithm}
+\caption{scan}
+\KwResult{A sequence of Tokens}
+
+\While{$true$}{
+$ch \gets$ peek()\;
+
+\Switch{ch}{
+    \Case{"\textbackslash0"}{\If{scanner.errored}{\Return errors}\Else{output.push(eof token)\; \Return output}}
+    \Case{whitespace}{advance()\;}
+    \Case{'"'}{$s \gets scan\_string()$\; output.push(string literal token $s$)}
+    \Case{"<"}{\If{next token is $=$}{output.push(less than or equal token)}\Else{output.push(less than token)}}
+    \Case{","}{output.push(comma token)}
+    ...
+
+    \Case{is digit}{$n \gets scan\_number()$\; output.push(number literal token $n$)}
+    \Case{is letter or "\_"}{$ident \gets scan\_identifier()$\; \If{$ident$ is keyword $k$}{output.push(keyword token $k$)}\Else{output.push(identifier token $ident$)}}
+    \Case{default}{errors.push(invalid character $ch$)}
+}
+advance()\;}
+
+\end{algorithm}

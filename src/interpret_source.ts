@@ -1,4 +1,4 @@
-import { has_errors, UntypescriptError } from "./error";
+import { has_errors, UntypedscriptError } from "./error";
 import { scan, Token } from "./scanner";
 import { parse_tokens } from "./parser";
 import { interpret_results } from "./interpreter";
@@ -10,7 +10,7 @@ import { Value } from "../lib/types";
  * @returns The return value of the program if successful, 
  * otherwise returns all the encountered errors
  */
-export function interpret_source(source: string): Value | Array<UntypescriptError> {
+export function interpret_source(source: string): Value | Array<UntypedscriptError> {
     const res = scan(source);
     if (has_errors(res)){
         return res;
@@ -24,9 +24,9 @@ export function interpret_source(source: string): Value | Array<UntypescriptErro
     try {
         return interpret_results(parsed);
     } catch (e) {
-        // Safety: We only ever intentionally throw UntypescriptErrors, 
+        // Safety: We only ever intentionally throw UntypedscriptErrors, 
         // and if some other error occurs something's gone very wrong and we should probably crash anyway
-        const error = e as UntypescriptError;
+        const error = e as UntypedscriptError;
         return [error];
     }
 }
