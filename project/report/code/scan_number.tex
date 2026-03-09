@@ -1,0 +1,19 @@
+\begin{algorithm}
+\caption{scan_number}
+\KwResult{A number literal}
+
+$start \gets$ scanner index\;
+\While{character is digit}{ advance()\; }
+\If{next character is '.'}{
+    \If{next character is not digit}{
+        error()\;
+        $skip\_line \gets true$
+
+        \Return{null}
+    }
+}
+\While{character is digit}{ advance()\; }
+$end \gets$ scanner index\;
+$n \gets Number(substring(source, start, end))$\;
+\Return{number literal token $n$}
+\end{algorithm}

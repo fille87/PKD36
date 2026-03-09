@@ -18,7 +18,7 @@ import {
     Variable
 } from"../lib/types";
 import {
-    UntypescriptError,
+    UntypedscriptError,
     ErrorKind,
     error_with_length,
 } from "./error";
@@ -133,7 +133,7 @@ function unary(expr: Unary): number | boolean {
             return !is_truthy(operand);
         case "-":
             if(typeof operand != "number") {
-                throw new UntypescriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.operand.index);
+                throw new UntypedscriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.operand.index);
             }
             return -operand;
     }
@@ -219,7 +219,7 @@ function binary(expr: Binary): Value {
                 return left / right;
             }
             // Fall-through runtime error for operators that require two numbers
-            throw new UntypescriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
+            throw new UntypedscriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
         case "*":
             if (typeof left === "number" && typeof right === "number") {
                 return left * right;
@@ -228,7 +228,7 @@ function binary(expr: Binary): Value {
             } else if (typeof left === "number" && typeof right === "string") {
                 return right.repeat(left);
             }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
+            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
         case "+":
             if (typeof left === "number" && typeof right === "number") {
                 return left + right;
@@ -237,7 +237,7 @@ function binary(expr: Binary): Value {
             } else if (typeof right === "string") {
                 return stringify(left) + right;
             }
-            throw new UntypescriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
+            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
         case "!=":
             return !is_equal(left, right);
         case "==":
@@ -348,7 +348,7 @@ function get_variable_value(expr: Variable): Value {
         case "Variable_Binding":
             return res.value;
         case "Uninitialized":
-            throw new UntypescriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
+            throw new UntypedscriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
     }
 
 }
@@ -411,14 +411,14 @@ function declare(expr: Declaration): void {
                     push_frame(frame);
                     return;
                 } else {
-                    throw new UntypescriptError(
+                    throw new UntypedscriptError(
                         ErrorKind.InvalidAssignment,
                         "Function '" + expr.name + "' with " + fn.params.length + " parameters already declared",
                         expr.index
                     );
                 }
             }
-        throw new UntypescriptError(
+        throw new UntypedscriptError(
             ErrorKind.RuntimeError,
             "Name is taken by variable",
             expr.index)
@@ -505,7 +505,7 @@ function call(call: Call): Value {
     // must lookup outside of lookup function otherwise we have to rebuild the entire system
     // with bindings instead instead of values so that we can pass along bindings
     // this would also allow for variables to be assigned to functions
-    const error = new UntypescriptError(
+    const error = new UntypedscriptError(
         ErrorKind.RuntimeError, 
         "Couldn't find variable '" + call.callee.name + "' in the current scope",
         call.index);
@@ -533,7 +533,7 @@ function call(call: Call): Value {
     if(res === undefined) throw error;
     const binding: Binding = res
     if (!Array.isArray(binding)) {
-        throw new UntypescriptError(
+        throw new UntypedscriptError(
             ErrorKind.RuntimeError,
             `Expected to find function bound to identifier, instead found ${typeof binding}`,
             call.index
@@ -544,7 +544,7 @@ function call(call: Call): Value {
     const match: FunctionBinding | undefined = binding.find(fn => fn.params.length === call.args.length);
     
     if (!match) {
-        throw new UntypescriptError(
+        throw new UntypedscriptError(
             ErrorKind.RuntimeError,
             `No overload of '${callee}' matches ${call.args.length} arguments`,
             call.index

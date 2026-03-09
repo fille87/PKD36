@@ -1,4 +1,4 @@
-import { UntypescriptError, ErrorKind } from "./error";
+import { UntypedscriptError, ErrorKind } from "./error";
 import { ph_lookup, ph_empty, ph_insert, ProbingHashtable } from "../lib/hashtables";
 import { get_sign } from "../lib/types";
 
@@ -21,7 +21,7 @@ export type Token = {
 
 type Literal = number | string;
 
-type ScannerResult = Array<Token> | Array<UntypescriptError>;
+type ScannerResult = Array<Token> | Array<UntypedscriptError>;
 
 export function token_length(token?: Token): number {
     if (token === undefined) {
@@ -121,7 +121,7 @@ export function scan(input: string): ScannerResult {
     // Emits a parse error pointing at a specified index
     function error_at(message: string, index: number) {
         scanner.errored = true;
-        const error = new UntypescriptError(ErrorKind.ParseError, message, index);
+        const error = new UntypedscriptError(ErrorKind.ParseError, message, index);
         errors.push(error);
     }
 
@@ -220,7 +220,7 @@ export function scan(input: string): ScannerResult {
 
     let scanner = scanner_init(input);
     let output: Array<Token> = [];
-    let errors: Array<UntypescriptError> = [];
+    let errors: Array<UntypedscriptError> = [];
     let skip_line = false;
 
     const keywords: ProbingHashtable<string, TokenType> = ph_empty(15, (word) => word.charCodeAt(0));

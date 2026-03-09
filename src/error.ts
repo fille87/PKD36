@@ -1,6 +1,6 @@
 import { Token, token_length } from "./scanner";
 
-export class UntypescriptError extends Error {
+export class UntypedscriptError extends Error {
     kind: ErrorKind;
     index: number;
     length?: number;
@@ -30,7 +30,7 @@ export class UntypescriptError extends Error {
  * @returns A new UntypescriptError with length information
  */
 export function error_with_length(kind: ErrorKind, message: string, index: number, length: number) {
-    const e = new UntypescriptError(kind, message, index);
+    const e = new UntypedscriptError(kind, message, index);
     e.length = length;
     return e;
 }
@@ -43,7 +43,7 @@ export function error_with_length(kind: ErrorKind, message: string, index: numbe
  * @returns A new UntypescriptError with token information
  */
 export function error_with_token(kind: ErrorKind, message: string, token: Token) {
-    const e = new UntypescriptError(kind, message, token.index);
+    const e = new UntypedscriptError(kind, message, token.index);
     e.length = token_length(token);
     return e;
 }
@@ -71,7 +71,7 @@ type Line = {
  * @param result What to check
  * @returns True if it's an array of UntypescriptErrprs, false otherwise
  */
-export function has_errors<T>(e: T | Array<UntypescriptError>): e is Array<UntypescriptError> {
+export function has_errors<T>(e: T | Array<UntypedscriptError>): e is Array<UntypedscriptError> {
     if (!Array.isArray(e)) {
         return false;
     }
@@ -86,8 +86,8 @@ export function has_errors<T>(e: T | Array<UntypescriptError>): e is Array<Untyp
  * @param x What to check
  * @returns True if it's an UntypescriptError, false otherwise
  */
-export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
-    const e = x as UntypescriptError;
+export function is_error<T>(x: T | UntypedscriptError): x is UntypedscriptError {
+    const e = x as UntypedscriptError;
     return e.kind != undefined 
         && e.message != undefined 
         && e.index != undefined;
@@ -98,7 +98,7 @@ export function is_error<T>(x: T | UntypescriptError): x is UntypescriptError {
  * @param source The source of the program
  * @returns A function that formats and prints an Array of UntypescriptErrors to the console
  */
-export function init(source: string): (es: Array<UntypescriptError>) => void {
+export function init(source: string): (es: Array<UntypedscriptError>) => void {
     // Gets the corresponding line of source code for a character index
     function get_line(ch_index: number): Line | undefined {
         const lines = source.split("\n");
@@ -124,14 +124,14 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
     }
 
     // Displays an array of UntypescriptErrors to the user
-    function display_errors(es: Array<UntypescriptError>) {
+    function display_errors(es: Array<UntypedscriptError>) {
         for (let i = 0; i < es.length; i += 1) {
             display_error(es[i]);
         }
     }
 
     // Displays a single UntypescriptError to the user
-    function display_error(e: UntypescriptError) {
+    function display_error(e: UntypedscriptError) {
         const line = get_line(e.index);
         if (line === undefined) {
             console.log("Error: " + e.message);
@@ -157,5 +157,5 @@ export function init(source: string): (es: Array<UntypescriptError>) => void {
         console.log();
     }
 
-    return (es: Array<UntypescriptError>) => display_errors(es);
+    return (es: Array<UntypedscriptError>) => display_errors(es);
 }
