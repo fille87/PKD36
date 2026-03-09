@@ -75,10 +75,30 @@
 \newpage
 
 \section{Introduction}
-    We wanted to test and apply the maximum amount of knowledge that we had acquired during the course. So we argued: what better way of doing so than to design our own interpreter for our own programming language? 
-\section{Use cases}
 
-\section{Program documentation}
+The goal of this project was to apply as much of the knowledge acquired during the course as possible in a single system. To achieve this, we chose to design and implement a small programming language together with an interpreter capable of executing programs written in that language. The resulting language, called \textit{UntypedScript}, is interpreted by a custom interpreter implemented in TypeScript. Apart from the standard data types introduced during the course, no external libraries were used.
+
+The design of UntypedScript was intentionally kept flexible during development. The initial goal was to create a dynamically typed language in which most constructs evaluate to values, allowing expressions to be used in a wide range of contexts. We also aimed to support labelled loops if time permitted. Beyond these initial ideas, the language evolved incrementally as the interpreter was implemented.
+
+In its current form, UntypedScript supports arithmetic and logical expressions, variable declarations, block structures with scoped variables, user-defined functions, function overloading, labelled \texttt{while} loops, and printing values to the terminal. Although the language does not provide the full feature set of modern programming languages, the project provided valuable insight into the design and implementation of interpreters, parsing techniques, environment models, and collaborative development using version control.
+
+\section{Use Cases}
+The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
+
+Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
+\subsection{Overview}
+
+The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
+
+The \texttt{scanner} reads the source program as a sequence of characters and converts it into a sequence of tokens. These tokens represent meaningful elements of the language, such as identifiers, keywords, operators, and literals.
+
+The \texttt{parser} takes the sequence of tokens as input and constructs a set of Abstract Syntax Trees (ASTs). Each AST represents the hierarchical structure of a statement or expression according to the language grammar.
+
+Finally, the \texttt{interpreter} evaluates the generated ASTs in sequence. During this stage, the interpreter executes the program by traversing the AST nodes and performing the operations they represent.
+
+The program also contains minor modules for reading source code from a file and error reporting.
+
+
 \subsection{Scanner}
 The first component handles the conversion from a string of text into a sequence of meaningful tokens that the parser can then work with. 
 A string of text can only really be worked with one character at a time, and an untypescript source file consists of various different meaningful units that vary from a single character up to an unlimited length. It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
