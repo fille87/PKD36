@@ -437,6 +437,15 @@ Some aspects of the design and implementation may be suboptimal. Firstly, the di
 Secondly, the way scoping is currently handled in the interpreter makes it difficult to implement lexical scoping for functions, as well as returning functions and assigning them to variables. Supporting such features would make UntypedScript a more flexible and expressive language. However, implementing a more robust environment model would have required significantly more development time. Given the limited time available, the current implementation allowed us to focus on delivering core functionality.
 
 As a consequence, the present design of the interpreter may become a bottleneck for further development. Nevertheless, it enabled the implementation of a working language with several key features within the time of the project.
+
 \section{Conclusion}
+
+In this project, we designed and implemented a small programming language together with an interpreter capable of executing programs written in that language. Due to the ambitious scope of the project and the limited time available, some design and architectural decisions were made that may not be optimal. Nevertheless, the final result is a working interpreter capable of parsing and executing UntypedScript programs while also reporting errors encountered during scanning, parsing, and interpretation.
+
+Developing the interpreter required the application of many concepts introduced throughout the course, including abstract syntax trees and environment-based evaluation. Implementing these components helped deepen our understanding of how programming languages are structured and how source code can be transformed into executable behaviour.
+
+Although UntypedScript is intentionally minimal and lacks many features found in modern programming languages, the project demonstrates the core mechanisms required to implement a language interpreter. The experience also provided valuable insight into software design, debugging, and collaborative development using version control.
+
+
 
 \end{document}
