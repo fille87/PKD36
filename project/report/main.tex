@@ -370,7 +370,8 @@ It takes a string of source code, then passes this to the scanner. In each step 
 
 The error handling is done in the main file, by first initializing the error handler. This is done with the following function:
 \begin{lstlisting}
-function init(source: string): (es: Array<UntypedscriptError>) => void
+function init(source: string): 
+    (es: Array<UntypedscriptError>) => void
 \end{lstlisting}
 
 It takes the same string of source code that is passed to the interpret_source function, and stores this state internally. It then returns a function that can be used to display an array of errors. It was written this way early on in the project to avoid using global variables, though we ended up using these in the interpreter later on anyway.
