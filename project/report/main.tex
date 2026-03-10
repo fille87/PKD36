@@ -131,7 +131,7 @@ function scan(input: string):
     Array<Token> | Array<UntypedscriptError>
 \end{lstlisting}
 where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. 
-We could have used a list structure here, but chose to use arrays instead to cut down on external libraries. Since we only ever read them by looping over the whole thing, we don't need to worry about potentially reading undefined values.
+We could have used a list structure here, but chose to use arrays instead to cut down on external libraries. Since we only ever read them by looping over the whole thing, we don't need to worry about potentially reading undefined values. However, in the end we still ended up needing the list library since the hashtable library depend on it.
 We also could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
 
 The scanner works by initializing with an index of 0. We then look at the character at that index, and pass this into a big switch statement.
