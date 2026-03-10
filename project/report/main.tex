@@ -37,7 +37,8 @@
 \title{Untypedscript}
 \author{Group 36
 \\Erwin Hörnell, Felix Svensson, Alexander Thoresson
-\\\\This is our project for PKD 2026}
+\\\\Project for PKD 2026}
+\date{March 2026}
 
 \begin{document}
 
@@ -88,6 +89,9 @@ In its current form, UntypedScript supports arithmetic and logical expressions, 
 The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
 
 Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
+
+\section{Program documentation}
+
 \subsection{Overview}
 
 The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
@@ -438,5 +442,6 @@ Secondly, the way scoping is currently handled in the interpreter makes it diffi
 
 As a consequence, the present design of the interpreter may become a bottleneck for further development. Nevertheless, it enabled the implementation of a working language with several key features within the time of the project.
 \section{Conclusion}
-
+Considering the short time frame of the project, we think we managed to achieve most of what we set out to implement. Though the language is still lacking things like a standard library, the basic syntactic features of the language are there and working as expected. While in hindsight there are things that we probably should have decided on earlier in the process, we mostly stuck to the specifications we drew up at the beginning of the project.
+We ended up learning a lot about different programming language concepts, and getting to work with some of the Automata theory course concepts in practice was also a bonus.
 \end{document}
