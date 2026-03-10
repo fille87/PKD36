@@ -44,7 +44,8 @@ export type Parser = {
 export type ParserResult = Array<Expression | Statement> | Array<UntypedscriptError>;
 
 /**
- * Helper function that returns errors if needed else normal parsing output 
+ * Helper function that returns errors if at least 1 error ocured while parsing 
+ * else it returns the array of AST:s
  * @param tokens an array of tokens
  * @returns Either Array<Statement | Expression> or Array<UntypescriptError>
  */
@@ -56,11 +57,14 @@ export function parse_tokens(tokens: Array<Token>): ParserResult {
     return parser.output;
 }
 /**
- * Parses an array of Tokens and returns an array of types representing AST:s 
- * @param tokens an array of tokens
- * @returns a parser containing mainly 
- *          output: Array<Statement | Expression>
- *          input:  Array<UntypescriptError>
+ * Main parsing driver.
+ * Initializes the parser state and repeatedly parses until the end-of-file 
+ * token is reached. Syntax errors are caught and stored in the parser state, 
+ * after which the parser attempts to recover using synchronization.
+ *
+ * @param tokens Array of tokens produced by the scanner
+ * @returns Parser object containing the generated AST nodes and
+ *          any errors encountered during parsing
  */
 export function parse(tokens: Array<Token>): Parser {
     const parser: Parser = {
@@ -112,6 +116,16 @@ export function parse(tokens: Array<Token>): Parser {
         return false;
     }
 
+    /**
+     * Parses a single statement.
+     *
+     * Determines which kind of statement is present based on the next
+     * token and delegates to the appropriate parsing function. If none
+     * of the known statement types match, the function parses an
+     * expression and optionally converts it into an expression statement.
+     *
+     * @returns Parsed Statement or Expression node
+     */
     function parse_statement(): Expression | Statement {
         if (parser.latest_was_expression) {
             throw error_with_token(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", previous());
@@ -136,8 +150,19 @@ export function parse(tokens: Array<Token>): Parser {
                 parser.latest_was_expression = true;
         }
         return expr;
-    }
+    }  
 
+    /**
+     * Parses a while-expression.
+     *
+     * Syntax:
+     *      while <condition> [:label] { <block> }
+     *
+     * The condition expression is evaluated before each iteration.
+     * A label may optionally be provided to allow labelled breaks.
+     *
+     * @returns While AST node
+     */
     function parse_while(): Expression {
         const condition: Expression = parse_expression();
         let name : string | null = null // Must be a 
@@ -154,6 +179,17 @@ export function parse(tokens: Array<Token>): Parser {
         throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
     }
 
+    /**
+     * Parses an infinite loop expression.
+     *
+     * Syntax:
+     *      loop [:label] { <block> }
+     *
+     * This construct is internally represented as a while-loop with a
+     * constant true condition.
+     *
+     * @returns While AST node with condition `true`
+     */
     function parse_loop(): Expression {
         const index: number = peek().index;
         const condition: Expression = make_literal(true, index);
@@ -170,6 +206,19 @@ export function parse(tokens: Array<Token>): Parser {
         throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
     }
 
+    /**
+     * Parses a break statement.
+     *
+     * Syntax:
+     *      break;
+     *      break :label;
+     *      break return <expression>;
+     *
+     * A break may optionally target a labelled loop and may also
+     * return a value to the surrounding context.
+     *
+     * @returns Break statement node
+     */
     function parse_break(): Statement {
         let index = peek().index;
         let label: string | null = null;
@@ -207,6 +256,17 @@ export function parse(tokens: Array<Token>): Parser {
         return make_print(expr, index);
     }
 
+
+    /**
+     * Parses a variable declaration.
+     *
+     * Syntax:
+     *      var <identifier> [= <expression>] ;
+     *
+     * Variables may optionally be initialized during declaration.
+     *
+     * @returns Variable declaration AST node
+     */
     function parse_var(): Statement {
         const index: number = previous().index;
         const identifier_index: number = peek().index;
@@ -221,6 +281,17 @@ export function parse(tokens: Array<Token>): Parser {
         return make_var(name, init, index, identifier_index);
     }
 
+    /**
+     * Parses a function declaration.
+     *
+     * Syntax:
+     *      fn <identifier> ( <parameters> ) { <block> }
+     *
+     * Parameters are stored as an ordered list of identifiers.
+     * The function body is parsed as a block expression.
+     *
+     * @returns Function declaration AST node
+    */
     function parse_fn(): Statement{
         let index: number = previous().index;
         const name: string = get_sign(consume(
@@ -247,6 +318,19 @@ export function parse(tokens: Array<Token>): Parser {
         throw error_with_token(ErrorKind.MissingToken, "Expected body after function head", peek());
     }
 
+
+    /**
+     * Parses a return statement.
+     *
+     * Return statements are only valid inside function bodies or as part
+     * of a break statement. The returned expression becomes the value
+     * of the function call.
+     *
+     * Syntax:
+     *      return <expression> ;
+     *
+     * @returns Return statement AST node
+     */
     function parse_return(): Statement {
         const index: number = previous().index;
         if (!parser.allow_return_statement) {
@@ -256,7 +340,16 @@ export function parse(tokens: Array<Token>): Parser {
         consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
         return make_return(expr, index);
     }
-
+    /**
+     * Parses the highest level of expressions.
+     *
+     * This function handles constructs that behave like expressions
+     * but introduce control flow, such as if-expressions, loops, and
+     * blocks. If none of these constructs match, parsing continues
+     * with assignment expressions.
+     *
+     * @returns Expression AST node
+     */
     function parse_expression(): Expression {
         if(match(TokenType.WHILE)) return parse_while();
         if(match(TokenType.LOOP)) return parse_loop();
@@ -295,7 +388,17 @@ export function parse(tokens: Array<Token>): Parser {
         parser.latest_was_expression = false;
         return make_block(body, previous().index)
     }
-
+    /**
+     * Parses assignment expressions.
+     *
+     * Syntax:
+     *      <identifier> = <expression>
+     *
+     * The left-hand side must be a valid assignment target
+     * (currently only variables).
+     *
+     * @returns Assignment AST node or lower-precedence expression
+     */
     function parse_assignment(): Expression {
         const target_token: Token = peek();
         let expr: Expression = parse_logic_or();
@@ -327,7 +430,20 @@ export function parse(tokens: Array<Token>): Parser {
         }
         return expr;
     }
-    
+    /**
+     * Binary expression parsing.
+     *
+     * The functions parse_equality(), parse_comparison(), parse_term(),
+     * parse_factor(), and parse_exponent() all follow the same pattern
+     * for parsing binary operations.
+     *
+     * Grammar rule (general form):
+     *      Level → NextLevel ( operator NextLevel )*
+     *
+     * Each function parses expressions at a specific precedence level.
+     * Lower-precedence functions call higher-precedence ones, forming a
+     * hierarchy that enforces the correct order of operations.
+     */
     function parse_equality(): Expression {
         let equal: Expression = parse_comparison();
         while(match(TokenType.BANG_EQ, TokenType.DOUBLE_EQUAL)){
@@ -383,7 +499,14 @@ export function parse(tokens: Array<Token>): Parser {
         }
         return base;
     }
-
+    /**
+     * Parses unary expressions.
+     *
+     * Grammar rule:
+     *      Unary → ("-" | "!") Unary | Call
+     *
+     * Handles negation and logical not operators.
+     */
     function parse_unary(): Expression {
         if(match(TokenType.MINUS, TokenType.BANG)){
             const index: number = previous().index;
@@ -394,6 +517,15 @@ export function parse(tokens: Array<Token>): Parser {
         return parse_call();
     }
 
+    /**
+     * Parses function call expressions.
+     *
+     * Calls may be chained and accept a comma-separated
+     * list of arguments.
+     * Example:
+     *      add(1, 2)
+     * @returns Call expression AST node
+     */
     function parse_call(): Expression {
         let expr: Expression = parse_primary();
         while (true) {
@@ -413,6 +545,11 @@ export function parse(tokens: Array<Token>): Parser {
         return expr;
     }
 
+    /**
+     * Helper function that parses arguments connected to an identifier. 
+     * @params Callee Variable that is being called
+     * @returns Call expression AST node
+     */
     function finish_call(callee: Variable): Expression {
         const args: Array<Expression> = [];
         const index: number = previous().index
@@ -425,6 +562,14 @@ export function parse(tokens: Array<Token>): Parser {
         return make_call(callee, args, index)
     }
 
+    /**
+     * Parses the leaf nodes of an AST or parentheses
+     *
+     *
+     * @returns Call expression AST node
+     * @throws UntypedscriptError if the token could not be recognized 
+     *         as a primary or parentheses
+     */
     function parse_primary(): Expression {
         const index: number = peek().index;
         if(match(TokenType.NULL)) return make_literal(null, index)
@@ -443,6 +588,18 @@ export function parse(tokens: Array<Token>): Parser {
         throw new UntypedscriptError(ErrorKind.UnexpectedToken, "Expected an expression", index);
     }
 
+    /**
+     * Error recovery routine.
+     *
+     * Advances through tokens until a safe synchronization point
+     * is reached. This prevents a single syntax error from causing
+     * a cascade of additional parsing errors.
+     *
+     * Synchronization points include:
+     *  - semicolons
+     *  - statement starting tokens
+     *  - closing braces
+     */
     function synchronize(): void {
         parser.latest_was_expression = false;
         advance();
@@ -481,6 +638,9 @@ export function parse(tokens: Array<Token>): Parser {
 }
 
 
+/**
+ * Constructs a binary expression AST node.
+ */
 
 function make_literal(value: Value, index: number): Literal {
     return {
