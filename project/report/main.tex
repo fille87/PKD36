@@ -375,7 +375,7 @@ function init(source: string): (es: Array<UntypedscriptError>) => void
 
 It takes the same string of source code that is passed to the interpret_source function, and stores this state internally. It then returns a function that can be used to display an array of errors. It was written this way early on in the project to avoid using global variables, though we ended up using these in the interpreter later on anyway.
 Internally, this simply calls display_errors, which iterates through the array and calls display_error on each error. This function in turn is simply a lot of string manipulation code to look at the error's index and get the corresponding line (and the adjacent lines) of the source file. It also creates a pointer that underlines exactly where the error occured, to make it very clear to the user what actually went wrong. Finally it prints all of this to the console.
-\lstset{style = }
+\lstset{language = {}}
 \begin{lstlisting}[title = Example of an error display]
 Error: Break label 'label' doesn't exist
 1 |        var x = true;
