@@ -12,21 +12,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 
-\lstset{\documentclass[12pt,a4paper]{article}
-\usepackage[english]{babel}
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
- \usepackage{amsmath}
-\usepackage{syntax}
-\usepackage{tabto}
-\usepackage[ruled,vlined]{algorithm2e}
-\usepackage{graphicx}
-\usepackage{forest}
-
-\usepackage{listings}
-\usepackage{xcolor}
-
-\lstset{
+\lstdefinestyle{Untypedscript}{
     language=Java,
     basicstyle=\ttfamily\small,
     keywordstyle=\color{blue},
@@ -44,6 +30,8 @@
     backgroundcolor=\color{gray!5},
     rulecolor=\color{black},
 }
+\lstset{style = Untypedscript}
+
 \setlength{\grammarindent}{7em}
 \setlength{\grammarparsep}{12pt}
 \title{Untypedscript}
@@ -112,184 +100,128 @@ Finally, the \texttt{interpreter} evaluates the generated ASTs in sequence. Duri
 
 The program also contains minor modules for reading source code from a file and error reporting.
 
-
 \subsection{Scanner}
-The first component handles the conversion from a string of text into a sequence of meaningful tokens that the parser can then work with. 
-A string of text can only really be worked with one character at a time, and an untypescript source file consists of various different meaningful units that vary from a single character up to an unlimited length. It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
-By having a first stage where we identify these units and convert them into a uniform data type we don't need to think about this in the later, more complex stages of parsing and interpreting, and can instead work with this token structure as the smallest meaningful unit. In this stage we can also catch the most obvious syntax errors, like unrecognized characters and malformed number literals, and halt execution before doing any more unnecessary work.
+A string of text can only really be worked with one character at a time, and a source file consists of various different meaningful units that vary from a single character up to an unlimited length. 
+It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
+Having a separate component first identify and convert these units into a uniform data structure helps simplify the latter, more complex step of building the AST. The parser can then assume this token structure as the smallest meaningful unit without having to deal with any string manipulation. In this stage we can also catch the most obvious syntax errors, like unrecognized characters and malformed number literals, and halt execution before doing any more unnecessary work.
 
-\begin{lstlisting}[title = Token]
-export type Token = {
+\begin{lstlisting}[title = Token structure]
+type Token = {
     type: TokenType,
     index: number,
-    value: Literal | undefined
+    value: number | string | undefined,
 }
-type Literal = number | string;
 \end{lstlisting}
-The Token type contains information about what type of token it is, at what position in the source it occurred as well as an optional value.
-The token type is an enum containing all the possible meaningful units that untypescript supports. 
-For most tokens this is all the information needed for the parser to be able to work with it, since they don't need to carry any additional information. 
-For string literals, number literals and identifiers however we also need to store the value of these, which is done in the value field.
+
+The tokens store three types of information: The type of token, the place in the source code it was parsed and an optional value. All tokens have a type, and for most of them this is all that's required for the parsing to work. We store these as an enum value, since all we need to do with these is decide how we're going to handle the token and having a clearly defined set of possible values helps minimize the risk of bugs introduced as the complexity of the parser and interpreter grows.
+However, we also want the debugging part of using Untypedscript to be as user friendly as possible. By also storing the position of the token in the source code, we can later on use this information to show exactly where in the code an error occurred.
+
+Finally, the language supports three types of tokens which carry an additional value: Strings, numbers and identifiers. Strings and numbers are among the basic data types, and identifiers represent variable or function names. Since their values are simply written out in the source code we can parse these at this stage and pass them on to the parser as single units.
 
 \begin{lstlisting}[title = Example of token types]
-export enum TokenType = {
-    COMMA, PLUS, MINUS ...
-    RIGHT_PAREN, LEFT_PAREN ...
+enum TokenType = {
+    COMMA, PLUS, MINUS, RIGHT_PAREN, LEFT_PAREN ...
     NUMBER_LIT, STRING_LIT, IDENTIFIER
 }
 \end{lstlisting}
-The interface to the scanner looks like this:
+
+The interface to the scanner has the signature:
 \begin{lstlisting}[frame = none]
-function scan(input: string): Array<Token> | Array<UntypescriptError>
+function scan(input: string): 
+    Array<Token> | Array<UntypedscriptError>
 \end{lstlisting}
 where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. 
-We could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
+We could have used a list structure here, but chose to use arrays instead to cut down on external libraries. Since we only ever read them by looping over the whole thing, we don't need to worry about potentially reading undefined values.
+We also could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
 
-\begin{lstlisting}[title = Internal state representation of the scanner]
-type Scanner = {
-    errored: boolean;
-    input: string;
-    input_length: number;
-    index: number;
-}
-\end{lstlisting}
-The scanner works by initializing with an index of 0. We then peek at the character at that index, and pass this into a big switch statement.
-
-For simple single character tokens, we can simply output the corresponding token and move on:
+The scanner works by initializing with an index of 0. We then look at the character at that index, and pass this into a big switch statement.
 \begin{lstlisting}
-switch (ch) {
     case ",":
         output.push(make_token(TokenType.COMMA));
         break;
-\end{lstlisting}
-
-For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead:
-\begin{lstlisting}
-    case "=":
-        if (peek(1) === "=") {
-            output.push(make_token(TokenType.DOUBLE_EQUAL));
+    case "*":
+        if (peek(1) === "*") {
+            output.push(make_token(TokenType.POW));
             advance();
         } else {
-            output.push(make_token(TokenType.EQUAL));
+            output.push(make_token(TokenType.TIMES));
         }
         break;
 \end{lstlisting}
 
+For simple single character tokens, we can simply output the corresponding token and move on. For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead and output the correct token based on what follows.
 If we match a quotation mark, we try to scan a string literal which simply ends at the next quotation mark. We could have made separate syntax for multi line strings, but just allowing simple string literals to span multiple lines was the simplest solution both to implement as well as to use.
-\begin{lstlisting}
-    case '"':
-        const s = scan_string();
-        ...
-\end{lstlisting}
 
 Finally, we end up in the default case:
 \begin{lstlisting}
-    default:
-        if (is_whitespace(ch)) {
-            break;
-        } else if (is_digit(ch)) {
-            const n = scan_number();
-            ...
-        } else if (is_letter(ch) || ch == "_") {
-            const ident = scan_identifier();
-            const keyword = ph_lookup(keywords, 
-                                      ident.value as string);
-            output.push(
-                keyword !== undefined 
-                    ? token(ident.index, keyword) 
-                    : ident
-            );
-            continue;
-            ...
-        } else {
-            error(...)
-            skip_line = true;
+default:
+    if (is_whitespace(ch)) { 
+        break;
+    } else if (is_digit(ch)) {
+        const n = scan_number();
+        if (n !== null) {
+            output.push(n);
         }
+        continue;
+    } else if (is_letter(ch) || ch == "_") {
+        const ident = scan_identifier();
+        const keyword = ph_lookup(keywords, ident.value as string);
+        output.push(
+            keyword !== undefined 
+                ? token(ident.index, keyword) 
+                : ident
+        );
+        continue;
+    }else {
+        error("Unrecognized character '" + ch + "'");
+        skip_line = true;
+    }
+    break;
 \end{lstlisting}
-We first check if the character is whitespace, in which case we can ignore it. This includes line breaks, tabs and spaces.
 
+Whitespace characters are simply ignored, this includes line breaks, tabs and spaces.
 If the character is a digit we try to scan a number literal and if it is a letter or underscore we try to scan an identifier. If we still can't match it, we output a syntax error and skip the rest of the line. 
-
 The reason we skip the line is because if we encounter a syntax error the rest of the line is likely to be invalid as well, and by skipping to the next line we make sure not to spam the user with meaningless errors. This is done simply by setting a flag that, if set, at the beginning of the loop will simply keep advancing the scanner to the next character until we either hit the end of file or a newline character.
 
 After the switch statement we advance to the next character and loop back around. If we hit the end of file we check if there were any errors and return these or the successful tokens accordingly:
+
 \begin{lstlisting}
-    case "\0":
-        if (!scanner.errored) {
-            output.push(make_token(TokenType.EOF));
-            return output;
-        } else {
-            return errors;
-        }
+case "\0":
+    if (!scanner.errored) {
+        output.push(make_token(TokenType.EOF));
+        return output;
+    } else {
+        return errors;
+    }
 \end{lstlisting}
 
-For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these.
+For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these. Scan_number however is a bit more involved:
 
-\begin{lstlisting}[title = scan\_number]
-    const start = scanner.index;
-    while(is_digit(peek())) {
-        advance();
-    }
-    if(peek() === ".") {
-        if (!is_digit(peek(1))) {
-            // Emit a syntax error and skip the rest of the line
-        }
-        advance();
-    }
-    while(is_digit(peek())) {
-        advance();
-    }
+\input{code/scan\_number}
 
-    return token(
-        start,
-        TokenType.NUMBER_LIT, 
-        Number(scanner.input.substring(start, scanner.index))
-    );
-\end{lstlisting}
-A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we peek at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
-
+A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we look at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
 In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
 
 If the character after the dot is a digit, we simply keep advancing until we hit something else. We then use the built in Number parsing constructor to parse the substring between start and end index into a number.
 
-\begin{lstlisting}[title = scan\_identifier]
-    const start = scanner.index;
-    while(is_letter(peek()) 
-          || is_digit(peek()) 
-          || peek() == "_") {
-        advance();
-    }
-
-    return token(
-        start,
-        TokenType.IDENTIFIER,
-        scanner.input.substring(start, scanner.index)
-    );
-\end{lstlisting}
 The identifier scanning is a bit simpler, since we just advance while the character is one of the ones that we support in our identifier names (letters, numbers and underscores).
 This is also how we handle keywords like if and else: after scanning an identifier we do a hash table lookup against a table of keywords. If there's a match, we output the corresponding token instead. We could have handled this separately in the switch statement, like so:
-\begin{lstlisting}[frame = none]
-case "f":
-    switch (peek(1)) {
-        case "n":
-            // fn keyword
-        case "a":
-            // keep checking for 'false'
-        ...
+\begin{lstlisting}
+    case "f":
+        // Look ahead one character
+        switch(peek(1)) {
+            case "n":
+                // fn keyword
+            case: "a"
+                // keep checking for false
+        } 
 \end{lstlisting}
-However, not only would this end up with a very messy switch statement, it would also not let the user use identifiers that start with a keyword. For instance, 'var' is a keyword in untypescript for function declarations, but this would also disallow identifiers like 'variable' from being used. You could do even more checks inside the different cases to fix this, but the simpler approach is simply to scan as long of an identifier as we can, and then check if it matches one of the keywords.
 
-\begin{lstlisting}[title = keywords hashtable]
-const keywords: ProbingHashtable<string, TokenType> = 
-        ph_empty(15, (word) => word.charCodeAt(0));
+However, not only would this end up with a very messy switch statement, it would also not let the user use identifiers that start with a keyword. For instance, 'var' is a keyword in untypescript for function declarations, but this would also disallow identifiers like 'variable' from being used. You could do even more checks inside the different cases to fix this, but the simpler approach is simply to scan as long of an identifier as we can, and then check if it matches one of the keywords. 
 
-    ph_insert(keywords, "and", TokenType.AND);
-    ph_insert(keywords, "or", TokenType.OR);
-    ph_insert(keywords, "if", TokenType.IF);
-    ...
-\end{lstlisting}
-The reason we use a hashtable for the keywords is that it gives us an easy way to look up a string and get back a corresponding token. As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
-
+We do this by storing all the possible keywords together with their corresponding Token in a hashtable. We do this since it gives us an easy way to look up a string and get back a corresponding token. 
+As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
+\newpage
 \subsection{Parser}
 
 The parser takes an array of tokens as input and returns either an array of ASTs (Abstract Syntax Trees) or an array of errors if any are encountered. If the parser detects missing or unexpected tokens, it records an error and attempts to recover before continuing the parsing process. This allows multiple errors to be reported from a single run, improving the user experience by providing more comprehensive feedback.
@@ -403,6 +335,52 @@ This is a check to see if the block should end early.
 
 Pops the top "Frame" off the frame stack, and returns the value of the block after all the expressions have been interpreted.
 
+\subsection{Main file and error handling}
+
+The final components of the program are the main file, interpret_source and error. The main file is what you run to read in and interpret a source file, and is very bare bones. It only contains what's required to get the user specified file name, resolve that to an absolute path and read the contents. It then calls interpret_source with the resulting text string. The reason we split the file reading and text interpreting up into different functions is to enable us to write tests for the main file that don't involve file reading. Requiring a separate test file for each test would quickly get very messy, so by allowing us to simply pass in a text string made this testing much easier.
+
+The interpret_source function is what ties the three components together:
+
+\begin{lstlisting}
+export function interpret_source(source: string): Value | Array<UntypedscriptError> {
+    const res = scan(source);
+    if (has_errors(res)){
+        return res;
+    }
+
+    const parsed = parse_tokens(res as Array<Token>);
+    if (has_errors(parsed)){
+        return parsed;
+    }
+
+    try {
+        return interpret_results(parsed);
+    } catch (e) {
+        const error = e as UntypedscriptError;
+        return [error];
+    }
+}
+\end{lstlisting}
+
+It takes a string of source code, then passes this to the scanner. In each step of the process, it checks to see if any errors occurred, then returns these to the main file where they're displayed. If successful, it passes the resulting sequence of tokens onto the parser, which parses them into an AST. Finally, this is passed on to the interpreter. This is wrapped in a try/catch block, since unlike the scanner and parser syntax errors we handle runtime errors by throwing these. We do this since it doesn't really make sense to try to recover from these, so we want to exit the program as soon as we encounter one. We still pass these errors on to the main file for display to the user, however.
+
+The error handling is done in the main file, by first initializing the error handler. This is done with the following function:
+\begin{lstlisting}
+function init(source: string): (es: Array<UntypedscriptError>) => void
+\end{lstlisting}
+
+It takes the same string of source code that is passed to the interpret_source function, and stores this state internally. It then returns a function that can be used to display an array of errors. It was written this way early on in the project to avoid using global variables, though we ended up using these in the interpreter later on anyway.
+Internally, this simply calls display_errors, which iterates through the array and calls display_error on each error. This function in turn is simply a lot of string manipulation code to look at the error's index and get the corresponding line (and the adjacent lines) of the source file. It also creates a pointer that underlines exactly where the error occured, to make it very clear to the user what actually went wrong. Finally it prints all of this to the console.
+\lstset{style = }
+\begin{lstlisting}[title = Example of an error display]
+Error: Break label 'label' doesn't exist
+1 |        var x = true;
+2 |        break: label;
+  |               ^^^^^ Here
+3 |        var y = false;
+\end{lstlisting}
+
+\lstset{style = Untypedscript}
 \subsection{Tests}
 
 We wrote tests for the scanner, parser, and main file. Before main was functional, we needed to test the scanner and later the parser to see if they functioned like we wanted. 
@@ -422,6 +400,7 @@ test("Scan a single digit", () => {
 
 The parser tests include a lot of different comparisons, but there are three more common ones. The first one, is if the result of parsing the manually made array of tokens resulted in any errors. The second is the expected length of the output of the result from the parsing. The third is the expected type for the first output of the result from the parsing.
 
+\newpage
 \begin{lstlisting}[title = Example of a parser test]
 test("parses number literal", () => {
         const tokens = [
@@ -451,213 +430,6 @@ test("Multiple arguments", () => {
 
 This test is to see if the function interpret_source, (interprets a string written in our language and returns either a value or an array of UntypedscriptError) can take a string written in our language, with multiple arguments, and return the expected value.
 
-\section{Discussion}
-
-Some aspects of the design and implementation may be suboptimal. Firstly, the division of AST node types into \textit{Expressions} and \textit{Statements} is somewhat unclear, and the distinction between the two changed several times during development. This was partly caused by the intended syntax of UntypedScript, where most constructs return a value. At the same time, we attempted to adhere to conventions from the C programming language, where statements and expressions are more clearly separated. These competing design goals made the overall structure of the AST less consistent than initially intended.
-
-Secondly, the way scoping is currently handled in the interpreter makes it difficult to implement lexical scoping for functions, as well as returning functions and assigning them to variables. Supporting such features would make UntypedScript a more flexible and expressive language. However, implementing a more robust environment model would have required significantly more development time. Given the limited time available, the current implementation allowed us to focus on delivering core functionality.
-
-As a consequence, the present design of the interpreter may become a bottleneck for further development. Nevertheless, it enabled the implementation of a working language with several key features within the time of the project.
-\section{Conclusion}
-
-\end{document}
-
-    language=Java,
-    basicstyle=\ttfamily\small,
-    keywordstyle=\color{blue},
-    commentstyle=\color{gray},
-    stringstyle=\color{red},
-    numbers=left,
-    numberstyle=\tiny,
-    stepnumber=1,
-    numbersep=8pt,
-    frame=single,
-    tabsize=2,
-    breaklines=true,
-    showstringspaces=false
-    frame=lines,
-    backgroundcolor=\color{gray!5},
-    rulecolor=\color{black},
-}
-\setlength{\grammarindent}{7em}
-\setlength{\grammarparsep}{12pt}
-\title{Untypedscript}
-\author{Group 36
-\\Erwin Hörnell, Felix Svensson, Alexander Thoresson
-\\\\This is our project for PKD 2026}
-
-\begin{document}
-
-\maketitle
-
-\newpage
-
-\tableofcontents
-
-\newpage
-
-\selectlanguage{english}
-
-\section{What we should write}
-
-\begin{itemize}
-    \item The project title, the group number, the names of all group members, and a statement of the fact that this is the project for this course this year.
-    \item A table of contents,
-    \item An introduction, containing the motivation for the project and the context it should be used in, as well as a summary of what the program does.
-    
-    \item Use cases: a guide for how to actually use your program, including key examples.
-    \item Program documentation: a description of how your program really works, including at least:
-        \begin{itemize}
-            \item The overall design of your program: which are its constituent parts, and how do they interact? 
-            \item Description of important data structures and algorithms, including the problem that they solve and their interface.
-            \item Description of the major functions of the program, with functional specifications. Describe the control flow (i.e., how functions call each other), and the use of helper functions.
-            \item Brief description of tests and their coverage.
-        \end{itemize}
-    \item Discussion
-        \begin{itemize}
-            \item Description of technical decisions/choices that you made during the project, together with your reasoning for making a particular choice.
-            \item Strengths and weaknesses of the program. You may have created a simple design, written a clear interface, implemented an interesting algorithm or data structure, or achieved high test coverage. There may be parts of your program that work but not as well as you would like, or functionality that despite valiant attempts you have not succeeded in implementing properly.
-        \end{itemize}
-    \item A short conclusion.
-\end{itemize}
-
-\newpage
-
-\section{Introduction}
-
-The goal of this project was to apply as much of the knowledge acquired during the course as possible in a single system. To achieve this, we chose to design and implement a small programming language together with an interpreter capable of executing programs written in that language. The resulting language, called \textit{UntypedScript}, is interpreted by a custom interpreter implemented in TypeScript. Apart from the standard data types introduced during the course, no external libraries were used.
-
-The design of UntypedScript was intentionally kept flexible during development. The initial goal was to create a dynamically typed language in which most constructs evaluate to values, allowing expressions to be used in a wide range of contexts. We also aimed to support labelled loops if time permitted. Beyond these initial ideas, the language evolved incrementally as the interpreter was implemented.
-
-In its current form, UntypedScript supports arithmetic and logical expressions, variable declarations, block structures with scoped variables, user-defined functions, function overloading, labelled \texttt{while} loops, and printing values to the terminal. Although the language does not provide the full feature set of modern programming languages, the project provided valuable insight into the design and implementation of interpreters, parsing techniques, environment models, and collaborative development using version control.
-
-\section{Use Cases}
-The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
-
-Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
-\subsection{Overview}
-
-The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
-
-The \texttt{scanner} reads the source program as a sequence of characters and converts it into a sequence of tokens. These tokens represent meaningful elements of the language, such as identifiers, keywords, operators, and literals.
-
-The \texttt{parser} takes the sequence of tokens as input and constructs a sequence of Abstract Syntax Trees (ASTs). Each AST represents the hierarchical structure of a statement or expression according to the language grammar.
-
-Finally, the \texttt{interpreter} evaluates the generated ASTs in sequence. During this stage, the interpreter executes the program by traversing the AST nodes and performing the operations they represent.
-
-The program also contains minor modules for reading source code from a file and error reporting.
-
-
-\subsection{Scanner}
-A string of text can only really be worked with one character at a time, and an untypescript source file consists of various different meaningful units that vary from a single character up to an unlimited length. 
-It also has text that has no meaning to the execution of the program at all such as line breaks, whitespace and comments. 
-Having a separate component first identify and convert these units into a uniform data structure helps simplify the latter, more complex step of building the AST. The parser can then assume this token structure as the smallest meaningful unit without having to deal with any string manipulation. In this stage we can also catch the most obvious syntax errors, like unrecognized characters and malformed number literals, and halt execution before doing any more unnecessary work.
-
-\begin{lstlisting}[title = Token structure]
-type Token = {
-    type: TokenType,
-    index: number,
-    value: Literal | undefined,
-}
-type Literal = number | string;
-\end{lstlisting}
-
-The tokens store three types of information: The type of token, the place in the source code it was parsed and an optional value. All tokens have a type, and for most of them this is all that's required for the parsing to work. We store these as an enum value, since all we need to do with these is decide how we're going to handle the token and having a clearly defined set of possible values helps minimize the risk of bugs introduced as the complexity of the parser and interpreter grows.
-However, we also want the debugging part of using Untypedscript to be as user friendly as possible. By also storing the position of the token in the source code, we can later on use this information to show exactly where in the code an error occurred.
-
-Finally, the language supports three types of tokens which carry an additional value: Strings, numbers and identifiers. Strings and numbers are among the basic data types, and identifiers represent variable or function names. Since their values are simply written out in the source code we can parse these at this stage and pass them on to the parser as single units.
-
-\begin{lstlisting}[title = Example of token types]
-enum TokenType = {
-    COMMA, PLUS, MINUS ...
-    RIGHT_PAREN, LEFT_PAREN ...
-    NUMBER_LIT, STRING_LIT, IDENTIFIER
-}
-\end{lstlisting}
-
-The interface to the scanner has the signature:
-\begin{lstlisting}[frame = none]
-function scan(input: string): 
-    Array<Token> | Array<UntypedscriptError>
-\end{lstlisting}
-where the input is a string of source code, and the result depends on if any syntax errors were encountered. If the scanning was successful, the sequence of Tokens is returned as an array, while if any errors occured these will all be returned. 
-
-Since we're always going to access these by looping over them from beginning to end in order we could have used a list structure here, but we chose to use arrays instead to cut down on external dependencies. Since we only ever push values at the end of them in the parser, then only read them by looping over the whole thing, we don't need to worry about potentially reading undefined values.
-
-We also could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
-
-The scanner works by initializing with an index of 0. We then look at the character at that index, and pass this into a big switch statement.
-
-% \input{code/scan}
-
-Whitespace characters are simply ignored, this includes line breaks, tabs and spaces.
-For simple single character tokens, we can simply output the corresponding token and move on. For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead and output the correct token based on what follows.
-If we match a quotation mark, we try to scan a string literal which simply ends at the next quotation mark. We could have made separate syntax for multi line strings, but just allowing simple string literals to span multiple lines was the simplest solution both to implement as well as to use.
-
-If the character is a digit we try to scan a number literal and if it is a letter or underscore we try to scan an identifier. If we still can't match it, we output a syntax error and skip the rest of the line. 
-The reason we skip the line is because if we encounter a syntax error the rest of the line is likely to be invalid as well, and by skipping to the next line we make sure not to spam the user with meaningless errors. This is done simply by setting a flag that, if set, at the beginning of the loop will simply keep advancing the scanner to the next character until we either hit the end of file or a newline character.
-
-After the switch statement we advance to the next character and loop back around. If we hit the end of file we check if there were any errors and return these or the successful tokens accordingly.
-
-For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these.
-
-\input{code/scan\_number}
-
-A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we look at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
-In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
-
-If the character after the dot is a digit, we simply keep advancing until we hit something else. We then use the built in Number parsing constructor to parse the substring between start and end index into a number.
-
-The identifier scanning is a bit simpler, since we just advance while the character is one of the ones that we support in our identifier names (letters, numbers and underscores).
-This is also how we handle keywords like if and else: after scanning an identifier we do a hash table lookup against a table of keywords. If there's a match, we output the corresponding token instead. We could have handled this separately in the switch statement, like so:
-\begin{algorithm}
-    \Case{"f"}{
-        \Switch{next character}{
-            \Case{"n"}{
-                // fn keyword 
-            }
-            \Case{"a"}{
-                // keep checking for 'false'
-            }
-        }
-    }
-\end{algorithm}
-
-However, not only would this end up with a very messy switch statement, it would also not let the user use identifiers that start with a keyword. For instance, 'var' is a keyword in untypescript for function declarations, but this would also disallow identifiers like 'variable' from being used. You could do even more checks inside the different cases to fix this, but the simpler approach is simply to scan as long of an identifier as we can, and then check if it matches one of the keywords. 
-
-We do this by storing all the possible keywords together with their corresponding Token in a hashtable. We do this since it gives us an easy way to look up a string and get back a corresponding token. 
-As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
-
-\subsection{Parser}
-
-The parser takes an array of tokens as input and returns either an array of ASTs (Abstract Syntax Trees) or an array of errors if any are encountered. If the parser detects missing or unexpected tokens, it records an error and attempts to recover before continuing the parsing process. This allows multiple errors to be reported from a single run, improving the user experience by providing more comprehensive feedback.
-
-Individual tokens cannot be interpreted in isolation, as their meaning often depends on their position relative to other tokens. Instead, tokens are grouped into larger syntactic components such as statements and expressions. These components can recursively contain other components, forming a hierarchical tree structure that represents the program. Each node in this structure has a specific type, a set of fields, and rules that define what child nodes it may contain. These rules are described using a context-free grammar (CFG).
-
-\subsubsection{Context-Free Grammar}
-
-\input{figures/grammar}
-
-The terminals of this grammar consist of keywords, literals, identifiers, braces, parentheses, commas, colons, semicolons, and operators. The grammar was partially designed before implementation began and served as a guide during development. As the parser was implemented, additional rules were refined and incorporated into the grammar.
-
-An important architectural feature of the grammar is the hierarchical structure of expressions. 
-Higher-level expressions produce either a single lower-precedence expressions followed by repeated operator–expression patterns such as \texttt{( )*}. This structure naturally enforces operator precedence and associativity in the language. Unary operations have their operands before the value, so we handle these a little differently through recursion to make things a little cleaner.
-
-\subsubsection{Recursive Descent Parsing}
-
-Recursive descent parsing was used to implement the grammar and enforce the correct order of operations in expressions. In this approach, each non-terminal in the grammar corresponds to a parsing function. These functions call one another recursively, mirroring the hierarchical structure defined by the grammar.
-
-A clear example of this design can be seen in how the parser handles \textit{terms} and \textit{factors}. The functions \texttt{parse_term()} and \texttt{parse_factor()} implement two adjacent levels of operator precedence.
-
-\input{code/parse\_term}
-\input{code/parse\_factor}
-
-The ASTs produced by \texttt{parse_term()} may contain either a factor or another term as a direct child node. In contrast, a factor node cannot contain a term as a direct child. This structure ensures that multiplication and division occur before addition and subtraction.
-
-\input{figures/parse\_tree}
-
-
-    
 \section{Discussion}
 
 Some aspects of the design and implementation may be suboptimal. Firstly, the division of AST node types into \textit{Expressions} and \textit{Statements} is somewhat unclear, and the distinction between the two changed several times during development. This was partly caused by the intended syntax of UntypedScript, where most constructs return a value. At the same time, we attempted to adhere to conventions from the C programming language, where statements and expressions are more clearly separated. These competing design goals made the overall structure of the AST less consistent than initially intended.
