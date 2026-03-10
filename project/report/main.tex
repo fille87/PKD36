@@ -37,7 +37,8 @@
 \title{Untypedscript}
 \author{Group 36
 \\Erwin Hörnell, Felix Svensson, Alexander Thoresson
-\\\\This is our project for PKD 2026}
+\\\\Project for PKD 2026}
+\date{March 2026}
 
 \begin{document}
 
@@ -88,6 +89,9 @@ In its current form, UntypedScript supports arithmetic and logical expressions, 
 The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
 
 Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
+
+\section{Program documentation}
+
 \subsection{Overview}
 
 The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
@@ -366,12 +370,13 @@ It takes a string of source code, then passes this to the scanner. In each step 
 
 The error handling is done in the main file, by first initializing the error handler. This is done with the following function:
 \begin{lstlisting}
-function init(source: string): (es: Array<UntypedscriptError>) => void
+function init(source: string): 
+    (es: Array<UntypedscriptError>) => void
 \end{lstlisting}
 
 It takes the same string of source code that is passed to the interpret_source function, and stores this state internally. It then returns a function that can be used to display an array of errors. It was written this way early on in the project to avoid using global variables, though we ended up using these in the interpreter later on anyway.
 Internally, this simply calls display_errors, which iterates through the array and calls display_error on each error. This function in turn is simply a lot of string manipulation code to look at the error's index and get the corresponding line (and the adjacent lines) of the source file. It also creates a pointer that underlines exactly where the error occured, to make it very clear to the user what actually went wrong. Finally it prints all of this to the console.
-\lstset{style = }
+\lstset{language = {}}
 \begin{lstlisting}[title = Example of an error display]
 Error: Break label 'label' doesn't exist
 1 |        var x = true;
