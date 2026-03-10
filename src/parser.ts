@@ -145,8 +145,7 @@ export function parse(tokens: Array<Token>): Parser {
         if (parser.latest_was_expression) {
             throw error_with_token(
                 ErrorKind.SyntaxError, 
-                "Expected ; after expression. \
-                Bare expressions must be the last line of a program or block", 
+                "Expected ; after expression. Bare expressions must be the last line of a program or block", 
                 previous());
         }
         parser.latest_was_expression = false;
@@ -372,8 +371,7 @@ export function parse(tokens: Array<Token>): Parser {
         if (!parser.allow_return_statement) {
             throw error_with_token(
                 ErrorKind.ParseError, 
-                "Return statement must be inside a function declaraction \
-                or as part of a break statement", 
+                "Return statement must be inside a function declaraction or as part of a break statement", 
                 peek()
             );
         }
@@ -639,8 +637,7 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.LEFT_PAREN)) {
             const expr = parse_expression();
             consume(TokenType.RIGHT_PAREN, 
-                    'Expected ")" after expression, \
-                    got:"' + get_sign(peek()) + '"');
+                    'Expected ")" after expression, got:"' + get_sign(peek()) + '"');
             return expr;
         }
         throw new UntypedscriptError(ErrorKind.UnexpectedToken, 

@@ -228,7 +228,11 @@ function binary(expr: Binary): Value {
             } else if (typeof left === "number" && typeof right === "string") {
                 return right.repeat(left);
             }
-            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                expr.operator + " operands must be either two numbers or a number and a string", 
+                expr.index
+            );
         case "+":
             if (typeof left === "number" && typeof right === "number") {
                 return left + right;
@@ -237,7 +241,11 @@ function binary(expr: Binary): Value {
             } else if (typeof right === "string") {
                 return stringify(left) + right;
             }
-            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                expr.operator + " operands must be two numbers or include at least one string.", 
+                expr.index
+            );
         case "!=":
             return !is_equal(left, right);
         case "==":
@@ -368,8 +376,14 @@ function declare(expr: Declaration): void {
             }
             existing = ph_lookup(frame.vars, expr.name);
             if (existing && Array.isArray(existing)) {
-                // We don't want to allow overwriting a function identifier in the same scope with an arbitrary value
-                throw error_with_length(ErrorKind.RuntimeError, "Cannot overwrite function identifier '" + expr.name + "' in the same scope", expr.identifier_index, expr.name.length);
+                // We don't want to allow overwriting a function identifier 
+                // in the same scope with an arbitrary value
+                throw error_with_length(
+                    ErrorKind.RuntimeError, 
+                    "Cannot overwrite function identifier '" + expr.name + "' in the same scope", 
+                    expr.identifier_index, 
+                    expr.name.length
+                );
             }
             // Put the frame back before evaluating the initialiser
             push_frame(frame);

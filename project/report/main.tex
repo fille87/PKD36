@@ -118,6 +118,7 @@ We could have used a list structure here, but chose to use arrays instead to cut
 We also could have implemented this by throwing an error as soon as invalid syntax was encountered, but by finishing the scanning then returning all the errors at once we can then show them all to the user at once, allowing them to easily fix them in one go rather than having to rerun the program one fix at a time.
 
 The scanner works by initializing with an index of 0. We then look at the character at that index, and pass this into a big switch statement.
+
 \begin{lstlisting}
     case ",":
         output.push(make_token(TokenType.COMMA));
@@ -181,6 +182,8 @@ case "\0":
 For parsing literals and identifiers we use a few helper methods: scan\_string, scan\_number and scan\_identifier. scan\_string isn't very interesting, it just keeps advancing until it hits another quotation mark or end of file, then returns a substring of the source code between these. Scan_number however is a bit more involved:
 
 \input{code/scan\_number}
+
+\newpage
 
 A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we look at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
 In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
