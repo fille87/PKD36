@@ -174,8 +174,7 @@ export function scan(input: string): ScannerResult {
         if(peek() === ".") {
             if (!is_digit(peek(1))) {
                 advance();
-                error("Invalid number literal. Expected \
-                    digit after '.', got '" + peek() + "'");
+                error("Invalid number literal. Expected digit after '.', got '" + peek() + "'");
                 skip_line = true;
                 return null;
             }

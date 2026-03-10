@@ -251,8 +251,7 @@ function binary(expr: Binary): Value {
             }
             throw new UntypedscriptError(
                 ErrorKind.RuntimeError, 
-                expr.operator + " operands must be either two numbers \
-                    or a number and a string", 
+                expr.operator + " operands must be either two numbers or a number and a string", 
                 expr.index
             );
         case "+":
@@ -265,8 +264,8 @@ function binary(expr: Binary): Value {
             }
             throw new UntypedscriptError(
                 ErrorKind.RuntimeError, 
-                expr.operator + " operands must be two numbers \
-                    or include at least one string.", expr.index
+                expr.operator + " operands must be two numbers or include at least one string.", 
+                expr.index
             );
         case "!=":
             return !is_equal(left, right);
@@ -419,8 +418,7 @@ function declare(expr: Declaration): void {
                 // in the same scope with an arbitrary value
                 throw error_with_length(
                     ErrorKind.RuntimeError, 
-                    "Cannot overwrite function identifier '" + expr.name + "' \
-                        in the same scope", 
+                    "Cannot overwrite function identifier '" + expr.name + "' in the same scope", 
                     expr.identifier_index, 
                     expr.name.length
                 );
