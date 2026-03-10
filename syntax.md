@@ -1,21 +1,14 @@
+## Data types
+Untypedscript supports strings, numbers (floats), booleans and null.
+
+## Operators
+Strings are concatenated with +.  
+Repeated string concatenation with string * number
+** operator is exponentiation
+Logical operators are 'and' and 'or'
+
 ## Comments
 Comments start with a :: and span the rest of the line
-
-## Operations
-Strings are concatenated with +.  
-Repeated concatenation with *  
-** operator is exponentiation  
-
-## Keywords
-and, or  
-if/else don't require parentheses  
-```
-if true {
-
-} else if false {
-
-}
-```
 
 ## Functions
 Function declarations follow the syntax:
@@ -32,7 +25,7 @@ fn name(arg1, arg2) { }
 Assignments are made with the var keyword.
 
 ## Loops and blocks
-A block implicitly returns the last statement, allowing syntax like:
+A block (including loops, if/else and function declarations) implicitly returns the last statement, allowing syntax like:
 ```
 var x = {
     var y = 1 + 2;
@@ -64,7 +57,18 @@ var y = loop: name {
 }; :: y = 5
 ```
 
+## Keywords
+'print <Expression>;' prints an expression to the console
+if/else don't require parentheses and are considered expressions
+```
+if true {
+
+} else if false {
+
+}
+```
+
 ## Statements and expressions
-Every statement ends with a semicolon  
+Every statement ends with a semicolon. A program or block consists of any number of statements, optionally followed by an expression.
 The value of the last expression or statement in a function, loop, block or program is implicitly returned. 
-A statement has the value null.
+A statement returns the value null.

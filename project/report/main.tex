@@ -64,6 +64,12 @@ The primary purpose of the interpreter is to execute programs written in Untyped
 
 Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
 
+After compiling, run the interpreter as follows:
+\begin{lstlisting}
+node main source
+\end{lstlisting}
+where source is the source file to interpret. No special file extension is required. Basic language syntax is outlined appendix A.
+
 \section{Program documentation}
 \subsection{Overview}
 
@@ -424,5 +430,97 @@ Developing the interpreter required the application of many concepts introduced 
 Although UntypedScript is intentionally minimal and lacks many features found in modern programming languages, the project demonstrates the core mechanisms required to implement a language interpreter. The experience also provided valuable insight into software design, debugging, and collaborative development using version control.
 
 
+\newpage
+\appendix
 
+\section{Syntax notes}
+
+\begin{itemize}
+\subsection{Data types}
+\item Untypedscript supports strings, numbers (floats), booleans and null.
+
+\subsection{Operators}
+\item Strings are concatenated with +.  
+\item Repeated string concatenation with string * number
+\item ** operator is exponentiation
+\item Logical operators are 'and' and 'or'
+
+\subsection{Comments}
+\item Comments start with a :: and span the rest of the line
+
+\subsection{Functions}
+\item Function declarations follow the syntax:
+\begin{lstlisting}
+fn name(arg1, arg2) { }
+\end{lstlisting}
+
+\item Functions can be overloaded. These are both different functions:
+\begin{lstlisting}
+fn name(arg1) { }
+fn name(arg1, arg2) { }
+\end{lstlisting}
+
+\subsection{Assignments}
+\item Assignments are made with the var keyword, followed by an optional initializer:
+\begin{lstlisting}
+var x;
+var y = 5;
+\end{lstlisting}
+
+\subsection{Loops and blocks}
+\item A block (including loops, if/else and function declarations) implicitly returns the last statement, allowing syntax like:
+\begin{lstlisting}
+var x = {
+    var y = 1 + 2;
+    y
+}; :: x = 3
+\end{lstlisting}
+\begin{lstlisting}
+var y = if true { 1 } else { 3 }; :: y = 1
+\end{lstlisting}
+\item An infinite loop can be declared with the loop keyword  
+\item While takes an expression as condition, which does not require parentheses. This can include full code blocks:
+\begin{lstlisting}
+var x = 0;
+while { x = x + 1; x < 10} {
+
+}
+\end{lstlisting}
+
+\item Loops and breaks/continues can be labeled with the syntax:
+\begin{lstlisting}
+loop: name {
+    loop {
+        break: name;
+    }
+}
+\end{lstlisting}
+\begin{lstlisting}
+while x == 2: name {
+    break: name;
+}
+\end{lstlisting}
+\item Can also explicitly break with a return value:
+\begin{lstlisting}
+var y = loop: name {
+    break: name return 5;
+}; :: y = 5
+\end{lstlisting}
+
+\subsection{Keywords}
+\item 'print <Expression>;' prints an expression to the console
+\item if/else don't require parentheses and are considered expressions
+\begin{lstlisting}
+if true {
+
+} else if false {
+
+}
+\end{lstlisting}
+
+\subsection{Statements and expressions}
+\item Every statement ends with a semicolon. A program or block consists of any number of statements, optionally followed by an expression.
+\item The value of the last expression or statement in a function, loop, block or program is implicitly returned. 
+\item A statement returns the value null.
+\end{itemize}
 \end{document}
