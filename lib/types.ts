@@ -1,9 +1,9 @@
 import { ProbingHashtable } from "./hashtables";
-import {list, List, Pair} from "./list"
 import { NonEmptyStack } from "./stack";
 import { Token, TokenType } from "../src/scanner"
 
-export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" | "<=" | ">=" | "<" | ">" | "**";
+export type BinOperator = "+" | "-" | "*" | "/" | "==" | "!=" 
+                          | "<=" | ">=" | "<" | ">" | "**";
 export type UnaOperator = "-" | "!";
 export type Operator = BinOperator | UnaOperator;
 export type Value = number | string | boolean | null;
@@ -35,8 +35,10 @@ export type FunctionBinding = {
 
 export type Operation = Unary | Binary;
 
-export type Expression = Literal | Unary | Binary | Block | Variable | Assignment | If | Logic | Call | While;
-export type Statement = Declaration | ReturnStatement | Print | ExpressionStatement | Break;
+export type Expression = Literal | Unary | Binary | Block | Variable 
+                         | Assignment | If | Logic | Call | While;
+export type Statement = Declaration | ReturnStatement | Print 
+                        | ExpressionStatement | Break;
 
 export type Declaration = VariableDec | FunctionDec
 
