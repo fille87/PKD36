@@ -51,31 +51,6 @@
 
 \selectlanguage{english}
 
-\section{What we should write}
-
-\begin{itemize}
-    \item The project title, the group number, the names of all group members, and a statement of the fact that this is the project for this course this year.
-    \item A table of contents,
-    \item An introduction, containing the motivation for the project and the context it should be used in, as well as a summary of what the program does.
-    
-    \item Use cases: a guide for how to actually use your program, including key examples.
-    \item Program documentation: a description of how your program really works, including at least:
-        \begin{itemize}
-            \item The overall design of your program: which are its constituent parts, and how do they interact? 
-            \item Description of important data structures and algorithms, including the problem that they solve and their interface.
-            \item Description of the major functions of the program, with functional specifications. Describe the control flow (i.e., how functions call each other), and the use of helper functions.
-            \item Brief description of tests and their coverage.
-        \end{itemize}
-    \item Discussion
-        \begin{itemize}
-            \item Description of technical decisions/choices that you made during the project, together with your reasoning for making a particular choice.
-            \item Strengths and weaknesses of the program. You may have created a simple design, written a clear interface, implemented an interesting algorithm or data structure, or achieved high test coverage. There may be parts of your program that work but not as well as you would like, or functionality that despite valiant attempts you have not succeeded in implementing properly.
-        \end{itemize}
-    \item A short conclusion.
-\end{itemize}
-
-\newpage
-
 \section{Introduction}
 
 The goal of this project was to apply as much of the knowledge acquired during the course as possible in a single system. To achieve this, we chose to design and implement a small programming language together with an interpreter capable of executing programs written in that language. The resulting language, called \textit{UntypedScript}, is interpreted by a custom interpreter implemented in TypeScript. Apart from the standard data types introduced during the course, no external libraries were used.
@@ -88,6 +63,8 @@ In its current form, UntypedScript supports arithmetic and logical expressions, 
 The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
 
 Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
+
+\section{Program documentation}
 \subsection{Overview}
 
 The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
