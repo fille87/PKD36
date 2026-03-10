@@ -1,6 +1,14 @@
 import { parse } from "../src/parser";
 import { TokenType, Token } from "../src/scanner"
-import { Binary, ExpressionStatement, Variable, VariableDec, FunctionDec, While, Literal } from "../lib/types";
+import { 
+    Binary, 
+    ExpressionStatement, 
+    Variable, 
+    VariableDec, 
+    FunctionDec, 
+    While, 
+    Literal 
+} from "../lib/types";
 
 function token(type: TokenType, value: any = null, index = 0): Token {
     return { type, value, index };

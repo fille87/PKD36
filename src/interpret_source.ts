@@ -10,7 +10,9 @@ import { Value } from "../lib/types";
  * @returns The return value of the program if successful, 
  * otherwise returns all the encountered errors
  */
-export function interpret_source(source: string): Value | Array<UntypedscriptError> {
+export function interpret_source(source: string): 
+    Value | Array<UntypedscriptError> {
+
     const res = scan(source);
     if (has_errors(res)){
         return res;
@@ -25,7 +27,8 @@ export function interpret_source(source: string): Value | Array<UntypedscriptErr
         return interpret_results(parsed);
     } catch (e) {
         // Safety: We only ever intentionally throw UntypedscriptErrors, 
-        // and if some other error occurs something's gone very wrong and we should probably crash anyway
+        // and if some other error occurs something's gone very wrong 
+        // and we should probably crash anyway
         const error = e as UntypedscriptError;
         return [error];
     }

@@ -1,5 +1,9 @@
 import {
-    Expression, Literal, Unary, Binary, Value,
+    Expression, 
+    Literal, 
+    Unary, 
+    Binary, 
+    Value,
     UnaOperator,
     BinOperator,
     get_sign,
@@ -41,7 +45,8 @@ export type Parser = {
     allow_return_statement: boolean,
 }
 
-export type ParserResult = Array<Expression | Statement> | Array<UntypedscriptError>;
+export type ParserResult = Array<Expression | Statement> 
+                           | Array<UntypedscriptError>;
 
 /**
  * Helper function that returns errors if at least 1 error ocured while parsing 
@@ -106,7 +111,12 @@ export function parse(tokens: Array<Token>): Parser {
         if(check(token_type)){
             return advance();
         }
-        throw error_with_length(ErrorKind.MissingToken, message, peek().index, token_length(peek()));
+        throw error_with_length(
+            ErrorKind.MissingToken, 
+            message, 
+            peek().index, 
+            token_length(peek())
+        );
     }
 
     // Checks if the current token matches any of the given types
@@ -133,7 +143,11 @@ export function parse(tokens: Array<Token>): Parser {
      */
     function parse_statement(): Expression | Statement {
         if (parser.latest_was_expression) {
-            throw error_with_token(ErrorKind.SyntaxError, "Expected ; after expression. Bare expressions must be the last line of a program or block", previous());
+            throw error_with_token(
+                ErrorKind.SyntaxError, 
+                "Expected ; after expression. \
+                Bare expressions must be the last line of a program or block", 
+                previous());
         }
         parser.latest_was_expression = false;
         if(match(TokenType.VAR)) return parse_var();
@@ -181,7 +195,9 @@ export function parse(tokens: Array<Token>): Parser {
             body.label = name;
             return make_while(condition, body, name, peek().index)
         }
-        throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
+        throw error_with_token(ErrorKind.MissingToken, 
+                               "Expected block after while", 
+                               peek());
     }
 
     /**
@@ -208,7 +224,9 @@ export function parse(tokens: Array<Token>): Parser {
             const body: Block = parse_block() as Block;
             return make_while(condition, body, name, index)
         }
-        throw error_with_token(ErrorKind.MissingToken, "Expected block after while", peek());
+        throw error_with_token(ErrorKind.MissingToken, 
+                               "Expected block after while", 
+                               peek());
     }
 
     /**
@@ -230,7 +248,10 @@ export function parse(tokens: Array<Token>): Parser {
         let ret_val: Expression |null = null;
         if(match(TokenType.COLON)) {
             index = peek().index;
-            label = get_sign(consume(TokenType.IDENTIFIER, "Expected an identifier after :")) as string;
+            label = get_sign(consume(
+                TokenType.IDENTIFIER, 
+                "Expected an identifier after :"
+            )) as string;
         }
         if(match(TokenType.SEMICOLON)) {
             return {
@@ -251,14 +272,19 @@ export function parse(tokens: Array<Token>): Parser {
                 return_expr: ret_val,
             }
         }
-        throw new UntypedscriptError(ErrorKind.MissingToken, "Expected 'return', ';' or ':' after break", index);
+        throw new UntypedscriptError(
+            ErrorKind.MissingToken, 
+            "Expected 'return', ';' or ':' after break", 
+            index
+        );
     }
 
     // Parses a print statement
     function parse_print(): Statement {
         const index: number = previous().index;
         const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of print statement")
+        consume(TokenType.SEMICOLON, 
+                "Expected a ; at the end of print statement");
         return make_print(expr, index);
     }
 
@@ -283,7 +309,8 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.EQUAL)){
             init = parse_expression();
         }
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of variable declaration");
+        consume(TokenType.SEMICOLON, 
+                "Expected a ; at the end of variable declaration");
         return make_var(name, init, index, identifier_index);
     }
 
@@ -302,7 +329,8 @@ export function parse(tokens: Array<Token>): Parser {
         let index: number = previous().index;
         const name: string = get_sign(consume(
                 TokenType.IDENTIFIER,
-                "Expected an identifier in head of function declaration")) as string
+                "Expected an identifier in head of function declaration")
+        ) as string;
         const parameters: Array<string> = []
         consume(TokenType.LEFT_PAREN, "Expect '(' after function name");
         if (!check(TokenType.RIGHT_PAREN)) {
@@ -321,7 +349,9 @@ export function parse(tokens: Array<Token>): Parser {
             return make_fn(name, parameters, body, index);
         }
 
-        throw error_with_token(ErrorKind.MissingToken, "Expected body after function head", peek());
+        throw error_with_token(ErrorKind.MissingToken, 
+                               "Expected body after function head", 
+                               peek());
     }
 
 
@@ -340,10 +370,16 @@ export function parse(tokens: Array<Token>): Parser {
     function parse_return(): Statement {
         const index: number = previous().index;
         if (!parser.allow_return_statement) {
-            throw error_with_token(ErrorKind.ParseError, "Return statement must be inside a function declaraction or as part of a break statement", peek());
+            throw error_with_token(
+                ErrorKind.ParseError, 
+                "Return statement must be inside a function declaraction \
+                or as part of a break statement", 
+                peek()
+            );
         }
         const expr: Expression = parse_expression();
-        consume(TokenType.SEMICOLON, "Expected a ; at the end of the return statement");
+        consume(TokenType.SEMICOLON, 
+                "Expected a ; at the end of the return statement");
         return make_return(expr, index);
     }
     /**
@@ -382,7 +418,8 @@ export function parse(tokens: Array<Token>): Parser {
         const body: Array<Expression | Statement> = []
         parser.latest_was_expression = false;
         while (!check(TokenType.RIGHT_BRACE) && !at_end()) {
-            // We need to catch errors inside of here so we can synchronize and exit the block gracefully
+            // We need to catch errors inside of here 
+            // so we can synchronize and exit the block gracefully
             try {
                 body.push(parse_statement());
             } catch (e) {
@@ -415,7 +452,9 @@ export function parse(tokens: Array<Token>): Parser {
             if(expr.type === "Variable") {
                 return make_assignment(expr.name, value, expr.index);
             }
-            throw error_with_token(ErrorKind.InvalidAssignment, "Invalid assignment target.", target_token);
+            throw error_with_token(ErrorKind.InvalidAssignment, 
+                                   "Invalid assignment target.", 
+                                   target_token);
         }
         return expr;
     }
@@ -590,17 +629,22 @@ export function parse(tokens: Array<Token>): Parser {
         if(match(TokenType.NULL)) return make_literal(null, index)
         if(match(TokenType.TRUE)) return make_literal(true, index)
         if(match(TokenType.FALSE)) return make_literal(false, index)
-        if(match(TokenType.IDENTIFIER)) return make_variable(get_sign(previous()) as string, index)
+        if(match(TokenType.IDENTIFIER)) {
+            return make_variable(get_sign(previous()) as string, index)
+        }
         if(match(TokenType.NUMBER_LIT, TokenType.STRING_LIT)) {
             const value: Value = get_sign(previous());
             return make_literal(value, index)
         }
         if(match(TokenType.LEFT_PAREN)) {
             const expr = parse_expression();
-            consume(TokenType.RIGHT_PAREN, 'Expected ")" after expression, got:"' + get_sign(peek()) + '"')
+            consume(TokenType.RIGHT_PAREN, 
+                    'Expected ")" after expression, \
+                    got:"' + get_sign(peek()) + '"');
             return expr;
         }
-        throw new UntypedscriptError(ErrorKind.UnexpectedToken, "Expected an expression", index);
+        throw new UntypedscriptError(ErrorKind.UnexpectedToken, 
+                                     "Expected an expression", index);
     }
 
     /**
@@ -672,7 +716,8 @@ function make_literal(value: Value, index: number): Literal {
  * @param index The source code position of the operator
  * @returns A Unary expression
  */
-function make_unary(operator: UnaOperator, expr: Expression, index: number): Unary {
+function make_unary(operator: UnaOperator, 
+                    expr: Expression, index: number): Unary {
     return {
         type: "Unary",
         index,
@@ -690,7 +735,7 @@ function make_unary(operator: UnaOperator, expr: Expression, index: number): Una
  * @returns A Binary expression
  */
 function make_binary(operator: BinOperator, left: Expression, 
-                                right: Expression, index: number): Binary {
+                     right: Expression, index: number): Binary {
     return {
         type: "Binary",
         index,
@@ -717,12 +762,14 @@ function make_print(expr: Expression, index: number): Print {
 /**
  * Makes a variable declaration statement
  * @param name The name of the variable
- * @param initialiser The expression to assign to the variable, or null if it's uninitialized
+ * @param initialiser The expression to assign to the variable, 
+ * or null if it's uninitialized
  * @param index The source code position of the 'var' keyword
  * @param identifier The source code position of the identifier
  * @returns A VariableDec statement
  */
-function make_var(name:string, initialiser: Expression | null, index: number, identifier_index: number): VariableDec {
+function make_var(name:string, initialiser: Expression | null, 
+                  index: number, identifier_index: number): VariableDec {
     return {
         type: "Variable_declaration",
         index,
@@ -740,7 +787,8 @@ function make_var(name:string, initialiser: Expression | null, index: number, id
  * @param index The source code position of the 'fn' keyword
  * @returns A FunctionDec statement
  */
-function make_fn(name:string, params:Array<string>, body: Block, index:number): FunctionDec {
+function make_fn(name:string, params:Array<string>, 
+                 body: Block, index:number): FunctionDec {
     return {
         type: "Function_declaration",
         index,
@@ -785,7 +833,8 @@ function make_variable(name: string, index: number): Variable {
  * @param index The source code position of the identifier
  * @returns An Assignment expression
  */
-function make_assignment(name: string, value: Expression, index: number): Assignment {
+function make_assignment(name: string, value: Expression, 
+                         index: number): Assignment {
     return {
         type: "Assignment",
         index,
@@ -800,7 +849,8 @@ function make_assignment(name: string, value: Expression, index: number): Assign
  * @param index The source code position of the block
  * @returns A Block expression
  */
-function make_block(body: Array<Expression | Statement>, index: number): Block {
+function make_block(body: Array<Expression | Statement>, 
+                    index: number): Block {
     return {
     type: "Block",
     label: null, // TODO: Add support for labels
@@ -815,7 +865,8 @@ function make_block(body: Array<Expression | Statement>, index: number): Block {
  * @param index The source code position of the statement
  * @returns An Expression statement
  */
-function make_expression_statement(expression:Expression, index: number): ExpressionStatement {
+function make_expression_statement(expression:Expression, 
+                                   index: number): ExpressionStatement {
     return {
         type: "Expression_statement",
         index,
@@ -831,7 +882,8 @@ function make_expression_statement(expression:Expression, index: number): Expres
  * @param index The source code position of the expression
  * @returns An If expression
  */
-function make_if(condition: Expression, if_then:Expression, if_else:Expression | null, index:number): If {
+function make_if(condition: Expression, if_then:Expression, 
+                 if_else:Expression | null, index:number): If {
     return {
         type: "If",
         index,
@@ -849,7 +901,8 @@ function make_if(condition: Expression, if_then:Expression, if_else:Expression |
  * @param index The source code position of the expression
  * @returns A Logic expression
  */
-function make_logic(right:Expression, operator: "or" | "and", left:Expression, index:number): Logic {
+function make_logic(right:Expression, operator: "or" | "and", 
+                    left:Expression, index:number): Logic {
     return {
         type: "Logic",
         index,
@@ -867,7 +920,8 @@ function make_logic(right:Expression, operator: "or" | "and", left:Expression, i
  * @param index The source code position of the expression
  * @returns A While expression
  */
-function make_while(condition: Expression, body: Block, name: string | null, index: number): While {
+function make_while(condition: Expression, body: Block, name: string | null, 
+                    index: number): While {
     return {
         type: "While",
         index,
@@ -884,7 +938,8 @@ function make_while(condition: Expression, body: Block, name: string | null, ind
  * @param index The source code position of the expression
  * @returns A Call expression
  */
-function make_call(callee:Variable, args:Array<Expression>, index:number): Call {
+function make_call(callee:Variable, args:Array<Expression>, 
+                   index:number): Call {
     return {
         type: "Call",
         index,

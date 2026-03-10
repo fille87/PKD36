@@ -8,7 +8,7 @@ export class UntypedscriptError extends Error {
     /**
      * Constructor for an error message with no token length information
      * @param kind The type of error
-     * @param message Error message to be displayed together with the source code
+     * @param message Error message to be displayed together with source code
      * @param index The character of the source code where the error occurred
      */
     constructor(kind: ErrorKind, message: string, index: number) {
@@ -20,16 +20,17 @@ export class UntypedscriptError extends Error {
 }
 
 /**
- * Constructs an error with information about how long the token that caused the token is
+ * Constructs an error with information about error cause token length
  * @param kind The type of error
  * @param message Error message to be displayed together with the source code
- * @param index The character of the source code where the error occurred, indexed from the start (will be pointed to in the error message)
+ * @param index The position in the source code where the error occurred
  * @param length How many characters long the token where the error occurred is
  * @precondition index is a valid index into the source code string
  * @precondition length is an integer 1 or greater
  * @returns A new UntypescriptError with length information
  */
-export function error_with_length(kind: ErrorKind, message: string, index: number, length: number) {
+export function error_with_length(kind: ErrorKind, message: string, 
+                                  index: number, length: number) {
     const e = new UntypedscriptError(kind, message, index);
     e.length = length;
     return e;
@@ -39,7 +40,7 @@ export function error_with_length(kind: ErrorKind, message: string, index: numbe
  * Constructs an error with information about the token that caused the error
  * @param kind The type of error
  * @param message Error message to be displayed together with the source code
- * @param token The token that caused the error (will be pointed to in the error message)
+ * @param token The token that caused the error 
  * @returns A new UntypescriptError with token information
  */
 export function error_with_token(kind: ErrorKind, message: string, token: Token) {
@@ -71,7 +72,8 @@ type Line = {
  * @param result What to check
  * @returns True if it's an array of UntypescriptErrprs, false otherwise
  */
-export function has_errors<T>(e: T | Array<UntypedscriptError>): e is Array<UntypedscriptError> {
+export function has_errors<T>(e: T | Array<UntypedscriptError>): 
+                                  e is Array<UntypedscriptError> {
     if (!Array.isArray(e)) {
         return false;
     }
@@ -86,7 +88,8 @@ export function has_errors<T>(e: T | Array<UntypedscriptError>): e is Array<Unty
  * @param x What to check
  * @returns True if it's an UntypescriptError, false otherwise
  */
-export function is_error<T>(x: T | UntypedscriptError): x is UntypedscriptError {
+export function is_error<T>(x: T | UntypedscriptError): x is UntypedscriptError 
+{
     const e = x as UntypedscriptError;
     return e.kind != undefined 
         && e.message != undefined 
@@ -96,7 +99,8 @@ export function is_error<T>(x: T | UntypedscriptError): x is UntypedscriptError 
 /**
  * Initiate the error display handler
  * @param source The source of the program
- * @returns A function that formats and prints an Array of UntypescriptErrors to the console
+ * @returns A function that formats and prints an 
+ * Array of UntypescriptErrors to the console
  */
 export function init(source: string): (es: Array<UntypedscriptError>) => void {
     // Gets the corresponding line of source code for a character index
@@ -106,7 +110,8 @@ export function init(source: string): (es: Array<UntypedscriptError>) => void {
 
         for (let i = 0; i < lines.length; i += 1) {
             const line_end = line_start + lines[i].length;
-            if (line_start <= ch_index && (line_end >= ch_index || (ch_index >= line_end && i === lines.length - 1))) {
+            if (line_start <= ch_index && (line_end >= ch_index 
+                || (ch_index >= line_end && i === lines.length - 1))) {
                 return {
                     source: lines[i],
                     line_number: i,
@@ -120,7 +125,9 @@ export function init(source: string): (es: Array<UntypedscriptError>) => void {
     // Makes a line containing a pointer to a specified location and length
     function make_pointer(line: Line, index: number, length?: number): string {
         const position = index - line.start_index;
-        return "".padStart(position, " ") + "^".repeat(length === undefined ? 1 : length) + " Here";
+        return "".padStart(position, " ") + "^".repeat(length === undefined 
+                                                         ? 1 
+                                                         : length) + " Here";
     }
 
     // Displays an array of UntypescriptErrors to the user
@@ -141,15 +148,19 @@ export function init(source: string): (es: Array<UntypedscriptError>) => void {
         const previous = lines[line.line_number - 1];
         const next = lines[line.line_number + 1];
 
-        const margin_width = (line.line_number + 1).toString().length + 2; // One trailing space plus |
+        // One trailing space plus |
+        const margin_width = (line.line_number + 1).toString().length + 2; 
         const indentation = " ".repeat(4);
-        const margin = (s: string) => s + "|".padStart(margin_width - s.toString().length) + indentation;
+        const margin = (s: string) => 
+          s + "|".padStart(margin_width - s.toString().length) + indentation;
 
         console.log("Error: " + e.message);
         if (previous != undefined && previous.length != 0) {
             console.log(margin((line.line_number - 1).toString()) + previous);
         }
-        console.log(line.line_number.toString() + " |" + indentation + line.source);
+        console.log(
+            line.line_number.toString() + " |" + indentation + line.source
+        );
         console.log(margin("") + make_pointer(line, e.index, e.length))
         if (next != undefined && next.length != 0) {
             console.log(margin((line.line_number + 1).toString()) + next);

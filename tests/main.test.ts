@@ -177,7 +177,8 @@ describe("Function calls", () => {
         expect(interpret_source(s)).toBe(6);
     });
     test("Overloading", () => {
-        const s = "fn fun(a, b) { a + b } fn fun(a, b, c) { a * b * c } fun(1, 2, 3) + fun(5, 5)";
+        const s = "fn fun(a, b) { a + b } \
+            fn fun(a, b, c) { a * b * c } fun(1, 2, 3) + fun(5, 5)";
         expect(interpret_source(s)).toBe(16);
     });
     test("Nested calls", () => {

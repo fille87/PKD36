@@ -1,5 +1,9 @@
 import {
-    Expression, Literal, Unary, Binary, Value,
+    Expression, 
+    Literal, 
+    Unary, 
+    Binary, 
+    Value,
     Statement,
     Block,
     Assignment,
@@ -23,7 +27,14 @@ import {
     error_with_length,
 } from "./error";
 import { ph_empty, ph_insert, ph_lookup } from "../lib/hashtables";
-import { Stack, empty as empty_stack, push, top, pop, is_empty } from "../lib/stack";
+import { 
+    Stack, 
+    empty as empty_stack, 
+    push, 
+    top, 
+    pop, 
+    is_empty 
+} from "../lib/stack";
 
 // Default values for each new Frame's hashtable
 const DEFAULT_VARIABLE_SLOTS = 50;
@@ -123,7 +134,8 @@ function literal(lit: Literal): Value {
  * Evaluates a unary expression
  * @param expr The expression to evaluate
  * @returns The result of the evaluation
- * @throws Throws an error if '-' is used with something that doesn't evaluate to a number
+ * @throws Throws an error if '-' is used with something that 
+ * doesn't evaluate to a number
  */
 function unary(expr: Unary): number | boolean {
     const operand: Value = evaluate(expr.operand);
@@ -133,7 +145,11 @@ function unary(expr: Unary): number | boolean {
             return !is_truthy(operand);
         case "-":
             if(typeof operand != "number") {
-                throw new UntypedscriptError(ErrorKind.RuntimeError, "- operand must evaluate to a number", expr.operand.index);
+                throw new UntypedscriptError(
+                    ErrorKind.RuntimeError, 
+                    "- operand must evaluate to a number", 
+                    expr.operand.index
+                );
             }
             return -operand;
     }
@@ -183,7 +199,8 @@ function stringify(value: Value): string {
  * then applies the specified operator to these
  * @param expr The binary expression to evaluate
  * @returns The result of the evaluation
- * @throws Throws an error if invalid types are passed to the operator (like when trying to add null and null)
+ * @throws Throws an error if invalid types are passed to the operator 
+ * (like when trying to add null and null)
  */
 function binary(expr: Binary): Value {
     const left = evaluate(expr.left);
@@ -219,7 +236,11 @@ function binary(expr: Binary): Value {
                 return left / right;
             }
             // Fall-through runtime error for operators that require two numbers
-            throw new UntypedscriptError(ErrorKind.RuntimeError, "Both operands of '" + expr.operator + "' must be numbers", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                "Both operands of '" + expr.operator + "' must be numbers", 
+                expr.index
+            );
         case "*":
             if (typeof left === "number" && typeof right === "number") {
                 return left * right;
@@ -228,7 +249,12 @@ function binary(expr: Binary): Value {
             } else if (typeof left === "number" && typeof right === "string") {
                 return right.repeat(left);
             }
-            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be either two numbers or a number and a string", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                expr.operator + " operands must be either two numbers \
+                    or a number and a string", 
+                expr.index
+            );
         case "+":
             if (typeof left === "number" && typeof right === "number") {
                 return left + right;
@@ -237,7 +263,11 @@ function binary(expr: Binary): Value {
             } else if (typeof right === "string") {
                 return stringify(left) + right;
             }
-            throw new UntypedscriptError(ErrorKind.RuntimeError, expr.operator + " operands must be two numbers or include at least one string.", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                expr.operator + " operands must be two numbers \
+                    or include at least one string.", expr.index
+            );
         case "!=":
             return !is_equal(left, right);
         case "==":
@@ -300,9 +330,11 @@ function conditional(expr: If): Value {
 }
 
 /**
- * Looks up the type of Binding of a previously declared (in this or a higher scope) identifier
+ * Looks up the type of Binding of a previously declared 
+ * (in this or a higher scope) identifier
  * @param name The identifier to look up
- * @returns Undefined the identifier hasn't already been declared, otherwise returns its type of Binding
+ * @returns Undefined the identifier hasn't already been declared, 
+ * otherwise returns its type of Binding
  */
 function lookup(name: string): Binding | undefined {
     if (is_empty(frames)) {
@@ -332,13 +364,21 @@ function lookup(name: string): Binding | undefined {
 /**
  * Gets the value of a Variable in the current scope
  * @param expr The Variable to look up
- * @returns The Value of the Variable. Function bindings return a string representation.
- * @throws Throws an error if the variable couldn't be found in the current scope, or if it is uninitialized.
+ * @returns The Value of the Variable. 
+ * Function bindings return a string representation.
+ *
+ * @throws Throws an error if the variable couldn't be found in 
+ * the current scope, or if it is uninitialized.
  */
 function get_variable_value(expr: Variable): Value {
     const res = lookup(expr.name);
     if (res === undefined) {
-        throw error_with_length(ErrorKind.RuntimeError, "Couldn't find variable '" + expr.name + "' in the current scope", expr.index, expr.name.length);
+        throw error_with_length(
+            ErrorKind.RuntimeError, 
+            "Couldn't find variable '" + expr.name + "' in the current scope", 
+            expr.index, 
+            expr.name.length
+        );
     }
 
     if(Array.isArray(res)){
@@ -348,7 +388,11 @@ function get_variable_value(expr: Variable): Value {
         case "Variable_Binding":
             return res.value;
         case "Uninitialized":
-            throw new UntypedscriptError(ErrorKind.RuntimeError, "Can't access uninitialized variable '" + expr.name + "'", expr.index);
+            throw new UntypedscriptError(
+                ErrorKind.RuntimeError, 
+                "Can't access uninitialized variable '" + expr.name + "'", 
+                expr.index
+            );
     }
 
 }
@@ -356,8 +400,9 @@ function get_variable_value(expr: Variable): Value {
 /**
  * Declares a variable in the current scope
  * @param expr The Declaration statement
- * @throws Throws an error if trying to overwrite a function in the current scope, 
- * redeclaring a function with the same number of parameters or redeclaring a variable that already exists with no initializer
+ * @throws Throws an error if trying to overwrite a function 
+ * in the current scope, redeclaring a function with the same number of 
+ * parameters or redeclaring a variable that already exists with no initializer
  */
 function declare(expr: Declaration): void {
     let frame: Frame | undefined;
@@ -370,14 +415,23 @@ function declare(expr: Declaration): void {
             }
             existing = ph_lookup(frame.vars, expr.name);
             if (existing && Array.isArray(existing)) {
-                // We don't want to allow overwriting a function identifier in the same scope with an arbitrary value
-                throw error_with_length(ErrorKind.RuntimeError, "Cannot overwrite function identifier '" + expr.name + "' in the same scope", expr.identifier_index, expr.name.length);
+                // We don't want to allow overwriting a function identifier 
+                // in the same scope with an arbitrary value
+                throw error_with_length(
+                    ErrorKind.RuntimeError, 
+                    "Cannot overwrite function identifier '" + expr.name + "' \
+                        in the same scope", 
+                    expr.identifier_index, 
+                    expr.name.length
+                );
             }
             // Put the frame back before evaluating the initialiser
             push_frame(frame);
-            let val: Uninitialized | VariableBinding = expr.initialiser === null
-                ? { type: "Uninitialized" }
-                : { type: "Variable_Binding", value: evaluate(expr.initialiser)};
+            let val: Uninitialized | VariableBinding = 
+                expr.initialiser === null
+                    ? { type: "Uninitialized" }
+                    : { type: "Variable_Binding", 
+                        value: evaluate(expr.initialiser)};
 
             // Safety: We just pushed a frame onto frames
             frame = pop_frame()!;
@@ -413,7 +467,8 @@ function declare(expr: Declaration): void {
                 } else {
                     throw new UntypedscriptError(
                         ErrorKind.InvalidAssignment,
-                        "Function '" + expr.name + "' with " + fn.params.length + " parameters already declared",
+                        "Function '" + expr.name + "' with " + fn.params.length 
+                            + " parameters already declared",
                         expr.index
                     );
                 }
@@ -432,14 +487,21 @@ function declare(expr: Declaration): void {
  * @throws Throws an error if trying to assign a value to a function identifier
  */
 function assign(expr: Assignment): Value {
-    const res = lookup(expr.name); // This will throw an error if not already declared
+    // This will throw an error if not already declared
+    const res = lookup(expr.name); 
+
     if (Array.isArray(res)) {
-        throw error_with_length(ErrorKind.RuntimeError, "Cannot assign value to function identifier '" + expr.name + "'", expr.index, expr.name.length);
+        throw error_with_length(
+            ErrorKind.RuntimeError, 
+            "Cannot assign value to function identifier '" + expr.name + "'", 
+            expr.index, 
+            expr.name.length
+        );
     }
     let frame: Frame;
     let temp_stack = empty_stack<Frame>();
     while (!is_empty(frames)) {
-        // We know there's at least one frame since we already found the variable
+        // There's at least one frame since we already found the variable
         frame = pop_frame()!;
         if (ph_lookup(frame.vars, expr.name) != undefined) {
             // Put the frame back before we evaluate the expression
@@ -482,7 +544,8 @@ function loop(expr: While): Value {
                 should_break = false;
                 return return_value;
             }
-            // Break either once if no label or until the label matches the current loop's label
+            // Break either once if no label or until 
+            // the label matches the current loop's label
             if (should_break === true || should_break === expr.name) {
                 should_break = false;
             }
@@ -497,17 +560,18 @@ function loop(expr: While): Value {
  * Evaluates a function call
  * @param call The Call expression to evaluate
  * @returns The result of the call.
- * @throws Throws an error if the identifier can't be found in the current scope,
- * if trying to call something that isn't a function binding or if there is no function
- * with the right number of arguments declared
+ * @throws Throws an error if the identifier can't be found in 
+ * the current scope, if trying to call something that isn't a function binding 
+ * or if there is no function with the right number of arguments declared
  */
 function call(call: Call): Value {
-    // must lookup outside of lookup function otherwise we have to rebuild the entire system
-    // with bindings instead instead of values so that we can pass along bindings
-    // this would also allow for variables to be assigned to functions
+    // Must lookup outside of lookup function otherwise 
+    // we have to rebuild the entire system with bindings instead of values 
+    // so that we can pass along bindings.
+    // This would also allow for variables to be assigned to functions
     const error = new UntypedscriptError(
         ErrorKind.RuntimeError, 
-        "Couldn't find variable '" + call.callee.name + "' in the current scope",
+        "Couldn't find variable '" + call.callee.name + "' in current scope",
         call.index);
     if (is_empty(frames)) {
         throw error;
@@ -535,13 +599,14 @@ function call(call: Call): Value {
     if (!Array.isArray(binding)) {
         throw new UntypedscriptError(
             ErrorKind.RuntimeError,
-            `Expected to find function bound to identifier, instead found ${typeof binding}`,
+            `Expected function bound to identifier, found ${typeof binding}`,
             call.index
         );
     }
     // finds the functionBinding in the array of bindings to the 
     // callee name that match the number of args given
-    const match: FunctionBinding | undefined = binding.find(fn => fn.params.length === call.args.length);
+    const match: FunctionBinding | undefined = 
+        binding.find(fn => fn.params.length === call.args.length);
     
     if (!match) {
         throw new UntypedscriptError(
@@ -634,15 +699,28 @@ function frame_by_label(label: string): Frame | undefined {
 /**
  * Interprets a Break statement and sets the corresponding break flag
  * @param statement The Break statement
- * @throws Throws an error if trying to break from outside a block/loop, or if the label doesn't exist
+ * @throws Throws an error if trying to break from outside 
+ * a block/loop, or if the label doesn't exist
  */
 function break_loop(statement: Break) {
     if (is_empty(frames) || is_empty(pop(frames))) {
-        // If there aren't at least 2 frames on the stack we can't be inside a block, so we don't allow breakin
-        throw error_with_length(ErrorKind.RuntimeError, "Can only break from inside a block or loop", statement.index, 1);
+        // If there aren't at least 2 frames on the stack 
+        // we can't be inside a block, so we don't allow breaking
+        throw error_with_length(
+            ErrorKind.RuntimeError, 
+            "Can only break from inside a block or loop", 
+            statement.index, 
+            1
+        );
     }
-    if (statement.label != null && frame_by_label(statement.label) === undefined) {
-        throw error_with_length(ErrorKind.RuntimeError, "Break label '" + statement.label + "' doesn't exist", statement.index, statement.label.length);
+    if (statement.label != null 
+        && frame_by_label(statement.label) === undefined) {
+        throw error_with_length(
+            ErrorKind.RuntimeError, 
+            "Break label '" + statement.label + "' doesn't exist", 
+            statement.index, 
+            statement.label.length
+        );
     }
     should_break = statement.label == null ? true : statement.label;
 }

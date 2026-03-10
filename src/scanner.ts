@@ -1,5 +1,10 @@
 import { UntypedscriptError, ErrorKind } from "./error";
-import { ph_lookup, ph_empty, ph_insert, ProbingHashtable } from "../lib/hashtables";
+import { 
+    ph_lookup, 
+    ph_empty, 
+    ph_insert, 
+    ProbingHashtable 
+} from "../lib/hashtables";
 import { get_sign } from "../lib/types";
 
 export enum TokenType {
@@ -7,7 +12,8 @@ export enum TokenType {
     BANG, BANG_EQ, EQUAL, DOUBLE_EQUAL, GREATER, GREATER_EQ, LESS, LESS_EQ,
     RIGHT_PAREN, LEFT_PAREN, LEFT_BRACE, RIGHT_BRACE,
     SEMICOLON, COLON, EOF,
-    AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, TRUE, FALSE, NULL, BREAK, CONTINUE, PRINT,
+    AND, OR, IF, ELSE, LOOP, WHILE, FN, VAR, RETURN, 
+    TRUE, FALSE, NULL, BREAK, CONTINUE, PRINT,
 
     // Tokens that take a literal value
     NUMBER_LIT, STRING_LIT, IDENTIFIER, 
@@ -119,13 +125,16 @@ export function token(index: number, type: TokenType, value?: Literal) {
 /**
  * Scans an input string for tokens
  * @param input Input string to scan
- * @returns A List of Tokens if the scan is successful. If any parsing errors occur, instead returns a List of Errors
+ * @returns A List of Tokens if the scan is successful. 
+ * If any parsing errors occur, instead returns a List of Errors
  */
 export function scan(input: string): ScannerResult {
     // Emits a parse error pointing at a specified index
     function error_at(message: string, index: number) {
         scanner.errored = true;
-        const error = new UntypedscriptError(ErrorKind.ParseError, message, index);
+        const error = new UntypedscriptError(ErrorKind.ParseError, 
+                                             message, 
+                                             index);
         errors.push(error);
     }
 
@@ -165,7 +174,8 @@ export function scan(input: string): ScannerResult {
         if(peek() === ".") {
             if (!is_digit(peek(1))) {
                 advance();
-                error("Invalid number literal. Expected digit after '.', got '" + peek() + "'");
+                error("Invalid number literal. Expected \
+                    digit after '.', got '" + peek() + "'");
                 skip_line = true;
                 return null;
             }
@@ -203,7 +213,8 @@ export function scan(input: string): ScannerResult {
         return token(
             start,
             TokenType.STRING_LIT, 
-            scanner.input.substring(start + 1, scanner.index - 1) // Don't include the quotation marks
+            // Don't include the quotation marks:
+            scanner.input.substring(start + 1, scanner.index - 1)
         );
     }
 
@@ -227,7 +238,8 @@ export function scan(input: string): ScannerResult {
     let errors: Array<UntypedscriptError> = [];
     let skip_line = false;
 
-    const keywords: ProbingHashtable<string, TokenType> = ph_empty(15, (word) => word.charCodeAt(0));
+    const keywords: ProbingHashtable<string, TokenType> = 
+        ph_empty(15, (word) => word.charCodeAt(0));
     ph_insert(keywords, "and", TokenType.AND);
     ph_insert(keywords, "or", TokenType.OR);
     ph_insert(keywords, "if", TokenType.IF);
@@ -361,10 +373,13 @@ export function scan(input: string): ScannerResult {
                     if (n !== null) {
                         output.push(n);
                     }
-                    continue; // The number scanning already advances to the right position
+                    // The number scanning already advances to correct position
+                    continue; 
                 } else if (is_letter(ch) || ch == "_") {
                     const ident = scan_identifier();
-                    const keyword = ph_lookup(keywords, ident.value as string); // Safety: scan_identifier always returns a token with a string in the value field
+                    // Safety: scan_identifier always returns a token with 
+                    // a string in the value field
+                    const keyword = ph_lookup(keywords, ident.value as string); 
                     output.push(
                         keyword !== undefined 
                             ? token(ident.index, keyword) 
