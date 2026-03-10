@@ -37,8 +37,7 @@
 \title{Untypedscript}
 \author{Group 36
 \\Erwin Hörnell, Felix Svensson, Alexander Thoresson
-\\\\Project for PKD 2026}
-\date{March 2026}
+\\\\This is our project for PKD 2026}
 
 \begin{document}
 
@@ -52,6 +51,31 @@
 
 \selectlanguage{english}
 
+\section{What we should write}
+
+\begin{itemize}
+    \item The project title, the group number, the names of all group members, and a statement of the fact that this is the project for this course this year.
+    \item A table of contents,
+    \item An introduction, containing the motivation for the project and the context it should be used in, as well as a summary of what the program does.
+    
+    \item Use cases: a guide for how to actually use your program, including key examples.
+    \item Program documentation: a description of how your program really works, including at least:
+        \begin{itemize}
+            \item The overall design of your program: which are its constituent parts, and how do they interact? 
+            \item Description of important data structures and algorithms, including the problem that they solve and their interface.
+            \item Description of the major functions of the program, with functional specifications. Describe the control flow (i.e., how functions call each other), and the use of helper functions.
+            \item Brief description of tests and their coverage.
+        \end{itemize}
+    \item Discussion
+        \begin{itemize}
+            \item Description of technical decisions/choices that you made during the project, together with your reasoning for making a particular choice.
+            \item Strengths and weaknesses of the program. You may have created a simple design, written a clear interface, implemented an interesting algorithm or data structure, or achieved high test coverage. There may be parts of your program that work but not as well as you would like, or functionality that despite valiant attempts you have not succeeded in implementing properly.
+        \end{itemize}
+    \item A short conclusion.
+\end{itemize}
+
+\newpage
+
 \section{Introduction}
 
 The goal of this project was to apply as much of the knowledge acquired during the course as possible in a single system. To achieve this, we chose to design and implement a small programming language together with an interpreter capable of executing programs written in that language. The resulting language, called \textit{UntypedScript}, is interpreted by a custom interpreter implemented in TypeScript. Apart from the standard data types introduced during the course, no external libraries were used.
@@ -64,9 +88,6 @@ In its current form, UntypedScript supports arithmetic and logical expressions, 
 The primary purpose of the interpreter is to execute programs written in UntypedScript from a source file. While the language itself is intentionally minimal, it does serve as a platform for experimenting with language design and interpreter implementation.
 
 Because UntypedScript currently lacks built-in libraries and input functionality, it is primarily suited for small demonstration programs and experiments with control flow, expressions, and functions. Typical use cases include evaluating arithmetic expressions, testing language constructs such as labelled loops, and exploring how different syntactic structures are interpreted.
-
-\section{Program documentation}
-
 \subsection{Overview}
 
 The interpreter is divided into three main modules: \texttt{scanner}, \texttt{parser}, and \texttt{interpreter}. Each module has a distinct responsibility, which improves modularity and makes the overall system easier to understand and maintain.
@@ -118,11 +139,6 @@ The scanner works by initializing with an index of 0. We then look at the charac
     case ",":
         output.push(make_token(TokenType.COMMA));
         break;
-\end{lstlisting}
-
-For simple single character tokens, we can simply output the corresponding token and move on. For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead and output the correct token based on what follows.
-
-\begin{lstlisting}
     case "*":
         if (peek(1) === "*") {
             output.push(make_token(TokenType.POW));
@@ -133,6 +149,7 @@ For simple single character tokens, we can simply output the corresponding token
         break;
 \end{lstlisting}
 
+For simple single character tokens, we can simply output the corresponding token and move on. For tokens that could possibly consist of multiple characters, such as = and ==, we also look one character ahead and output the correct token based on what follows.
 If we match a quotation mark, we try to scan a string literal which simply ends at the next quotation mark. We could have made separate syntax for multi line strings, but just allowing simple string literals to span multiple lines was the simplest solution both to implement as well as to use.
 
 Finally, we end up in the default case:
@@ -182,7 +199,6 @@ For parsing literals and identifiers we use a few helper methods: scan\_string, 
 
 \input{code/scan\_number}
 
-\newpage
 A number literal in untypescript can be either an integer or a decimal number, demarcated by a '.'. We know we started at a digit, so we keep advancing as long as we keep getting more digits. If we get something else, we check if it's a dot. If that's the case, we look at the character after the dot to make sure it's a digit. This is to prevent things like '3.a'. 
 In many object-oriented languages this could be valid syntax for a method call of 'a' on the number object 3, but since the current iteration of untypescript doesn't have classes or support for this method call syntax this isn't something that we need to handle.
 
@@ -190,7 +206,6 @@ If the character after the dot is a digit, we simply keep advancing until we hit
 
 The identifier scanning is a bit simpler, since we just advance while the character is one of the ones that we support in our identifier names (letters, numbers and underscores).
 This is also how we handle keywords like if and else: after scanning an identifier we do a hash table lookup against a table of keywords. If there's a match, we output the corresponding token instead. We could have handled this separately in the switch statement, like so:
-\newpage
 \begin{lstlisting}
     case "f":
         // Look ahead one character
@@ -206,7 +221,7 @@ However, not only would this end up with a very messy switch statement, it would
 
 We do this by storing all the possible keywords together with their corresponding Token in a hashtable. We do this since it gives us an easy way to look up a string and get back a corresponding token. 
 As the hash function we simply take the character code of the first letter, both because almost all of our keywords end up starting with different letters but also because it's very simple (since the hashtable is so small the performance implications of one or two conflicts is irrelevant).
-
+\newpage
 \subsection{Parser}
 
 The parser takes an array of tokens as input and returns either an array of ASTs (Abstract Syntax Trees) or an array of errors if any are encountered. If the parser detects missing or unexpected tokens, it records an error and attempts to recover before continuing the parsing process. This allows multiple errors to be reported from a single run, improving the user experience by providing more comprehensive feedback.
@@ -351,13 +366,12 @@ It takes a string of source code, then passes this to the scanner. In each step 
 
 The error handling is done in the main file, by first initializing the error handler. This is done with the following function:
 \begin{lstlisting}
-function init(source: string): 
-    (es: Array<UntypedscriptError>) => void
+function init(source: string): (es: Array<UntypedscriptError>) => void
 \end{lstlisting}
 
 It takes the same string of source code that is passed to the interpret_source function, and stores this state internally. It then returns a function that can be used to display an array of errors. It was written this way early on in the project to avoid using global variables, though we ended up using these in the interpreter later on anyway.
 Internally, this simply calls display_errors, which iterates through the array and calls display_error on each error. This function in turn is simply a lot of string manipulation code to look at the error's index and get the corresponding line (and the adjacent lines) of the source file. It also creates a pointer that underlines exactly where the error occured, to make it very clear to the user what actually went wrong. Finally it prints all of this to the console.
-\lstset{language = {}}
+\lstset{style = }
 \begin{lstlisting}[title = Example of an error display]
 Error: Break label 'label' doesn't exist
 1 |        var x = true;
@@ -423,12 +437,12 @@ Some aspects of the design and implementation may be suboptimal. Firstly, the di
 Secondly, the way scoping is currently handled in the interpreter makes it difficult to implement lexical scoping for functions, as well as returning functions and assigning them to variables. Supporting such features would make UntypedScript a more flexible and expressive language. However, implementing a more robust environment model would have required significantly more development time. Given the limited time available, the current implementation allowed us to focus on delivering core functionality.
 
 As a consequence, the present design of the interpreter may become a bottleneck for further development. Nevertheless, it enabled the implementation of a working language with several key features within the time of the project.
-\newpage
+
 \section{Conclusion}
 
 In this project, we designed and implemented a small programming language together with an interpreter capable of executing programs written in that language. Due to the ambitious scope of the project and the limited time available, some design and architectural decisions were made that may not be optimal. Nevertheless, the final result is a working interpreter capable of parsing and executing UntypedScript programs while also reporting errors encountered during scanning, parsing, and interpretation.
 
-Developing the interpreter required the application of many concepts introduced throughout the course, including abstract syntax trees and environment-based evaluation. Implementing these components helped deepen our understanding of how programming languages are structured and how source code can be transformed into executable behaviour.
+Developing the interpreter required the application of many concepts introduced throughout this course, as well as the Automata Theory course, including environment-based evaluation, abstract syntax trees and context-free grammars. Implementing these components helped deepen our understanding of how programming languages are structured and how source code can be transformed into executable behaviour.
 
 Although UntypedScript is intentionally minimal and lacks many features found in modern programming languages, the project demonstrates the core mechanisms required to implement a language interpreter. The experience also provided valuable insight into software design, debugging, and collaborative development using version control.
 
