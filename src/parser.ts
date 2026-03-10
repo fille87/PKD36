@@ -77,27 +77,31 @@ export function parse(tokens: Array<Token>): Parser {
         allow_return_statement: false,
         end: tokens.length - 1
     }
+    // Checks if the next token is the end of file
     function at_end(): boolean{
         return peek().type === TokenType.EOF;
     }
+    // Check if the current token matches a given TokenType
     function check(type: TokenType): boolean { 
         return peek().type === type;
     }
+    // Gets the previous Token
     function previous(): Token {
         return parser.input[parser.current - 1];
     }
-    //returns current
+    // Gets the current Token
     function peek(): Token {
         return parser.input[parser.current];
     }
-    //returns current and moves to next
+    // Gets the current Token and moves to the next
     function advance(): Token{
         if(!at_end()) {
             parser.current++;
         }
         return previous();
     }
-
+    // Checks that the current token matches the given type then moves on
+    // Throws an error with the provided message if the token type doesn't match
     function consume(token_type: TokenType, message: string): Token{
         if(check(token_type)){
             return advance();
@@ -105,7 +109,8 @@ export function parse(tokens: Array<Token>): Parser {
         throw error_with_length(ErrorKind.MissingToken, message, peek().index, token_length(peek()));
     }
 
-    // comfirms type of token
+    // Checks if the current token matches any of the given types
+    // Returns true and advances if it does, false and stays in place otherwise
     function match(...types: Array<TokenType>): boolean {
         for(let i = 0; i < types.length; i++) {
             if(check(types[i])){
@@ -249,6 +254,7 @@ export function parse(tokens: Array<Token>): Parser {
         throw new UntypedscriptError(ErrorKind.MissingToken, "Expected 'return', ';' or ':' after break", index);
     }
 
+    // Parses a print statement
     function parse_print(): Statement {
         const index: number = previous().index;
         const expr: Expression = parse_expression();
@@ -359,6 +365,7 @@ export function parse(tokens: Array<Token>): Parser {
         return expr;
     }
 
+    // Parses an if/else expression
     function parse_if(): Expression {
         const index: number = previous().index;
         const condition: Expression = parse_expression();
@@ -370,6 +377,7 @@ export function parse(tokens: Array<Token>): Parser {
         return make_if(condition, if_then, if_else, index);
     }
 
+    // Parses a block expression
     function parse_block(): Expression {
         const body: Array<Expression | Statement> = []
         parser.latest_was_expression = false;
@@ -412,6 +420,7 @@ export function parse(tokens: Array<Token>): Parser {
         return expr;
     }
 
+    // Parses a logical or expression
     function parse_logic_or(): Expression {
         let expr: Expression = parse_logic_and();
         while(match(TokenType.OR)){
@@ -421,6 +430,8 @@ export function parse(tokens: Array<Token>): Parser {
         }
         return expr;
     }
+
+    // Parses a logical and expression
     function parse_logic_and(): Expression {
         let expr: Expression = parse_equality();
         while(match(TokenType.AND)){
@@ -454,6 +465,8 @@ export function parse(tokens: Array<Token>): Parser {
         }
         return equal;
     }
+
+    // Parses a comparison binary expression
     function parse_comparison(): Expression {
         let comp: Expression = parse_term();
         while(match(TokenType.LESS, TokenType.LESS_EQ,
@@ -467,6 +480,7 @@ export function parse(tokens: Array<Token>): Parser {
         return comp;
     }
 
+    // Parses a term (addition/subtraction) binary expression
     function parse_term(): Expression {
         let term: Expression = parse_factor();
         while(match(TokenType.PLUS, TokenType.MINUS)){
@@ -478,6 +492,7 @@ export function parse(tokens: Array<Token>): Parser {
         return term;
     }
 
+    // Parses a factor (multiplication/division) binary expression
     function parse_factor(): Expression {
         let fact: Expression = parse_exponent();
         while(match(TokenType.TIMES, TokenType.DIVIDE)) {
@@ -489,6 +504,7 @@ export function parse(tokens: Array<Token>): Parser {
         return fact;
     }
     
+    // Parses an exponentation binary expression
     function parse_exponent(): Expression {
         let base: Expression = parse_unary();
         while(match(TokenType.POW)) {
@@ -541,7 +557,6 @@ export function parse(tokens: Array<Token>): Parser {
                 break
             }
         }
-
         return expr;
     }
 
@@ -610,10 +625,7 @@ export function parse(tokens: Array<Token>): Parser {
             switch (peek().type) {
                 case TokenType.FN:
                 case TokenType.VAR:
-                case TokenType.IF:
-                case TokenType.WHILE:
                 case TokenType.RETURN:
-                case TokenType.PRINT:
                 case TokenType.PRINT:
                 case TokenType.RIGHT_BRACE:
                     return;
@@ -623,6 +635,7 @@ export function parse(tokens: Array<Token>): Parser {
         }
     }
 
+    // Main loop of the scanner
     while (!at_end()) {
         try {
             const statement = parse_statement();
@@ -639,9 +652,11 @@ export function parse(tokens: Array<Token>): Parser {
 
 
 /**
- * Constructs a binary expression AST node.
+ * Makes a Literal expression
+ * @param value The value of the literal
+ * @param index The source code position of the first character
+ * @returns A Literal expression
  */
-
 function make_literal(value: Value, index: number): Literal {
     return {
         type: "Literal",
@@ -650,6 +665,13 @@ function make_literal(value: Value, index: number): Literal {
     }
 }
 
+/**
+ * Makes a Unary expression
+ * @param operator The unary operator
+ * @param expr The expression the operator applies to
+ * @param index The source code position of the operator
+ * @returns A Unary expression
+ */
 function make_unary(operator: UnaOperator, expr: Expression, index: number): Unary {
     return {
         type: "Unary",
@@ -659,6 +681,14 @@ function make_unary(operator: UnaOperator, expr: Expression, index: number): Una
     }
 }
 
+/**
+ * Makes a Binary expression
+ * @param operator The binary operator
+ * @param left The left side expression
+ * @param right The right side expression
+ * @param index The source code position of the operator
+ * @returns A Binary expression
+ */
 function make_binary(operator: BinOperator, left: Expression, 
                                 right: Expression, index: number): Binary {
     return {
@@ -670,6 +700,12 @@ function make_binary(operator: BinOperator, left: Expression,
     }
 }
 
+/**
+ * Makes a Print statement
+ * @param expr The expression to print the result of
+ * @param index The source code position of the statement
+ * @returns A Print statement
+ */
 function make_print(expr: Expression, index: number): Print {
     return {
         type: "Print",
@@ -678,6 +714,14 @@ function make_print(expr: Expression, index: number): Print {
     }
 }
 
+/**
+ * Makes a variable declaration statement
+ * @param name The name of the variable
+ * @param initialiser The expression to assign to the variable, or null if it's uninitialized
+ * @param index The source code position of the 'var' keyword
+ * @param identifier The source code position of the identifier
+ * @returns A VariableDec statement
+ */
 function make_var(name:string, initialiser: Expression | null, index: number, identifier_index: number): VariableDec {
     return {
         type: "Variable_declaration",
@@ -688,6 +732,14 @@ function make_var(name:string, initialiser: Expression | null, index: number, id
     }
 }
 
+/**
+ * Makes a function declaration statement
+ * @param name The name of the function
+ * @param params An array of parameter names
+ * @param body The body of the function
+ * @param index The source code position of the 'fn' keyword
+ * @returns A FunctionDec statement
+ */
 function make_fn(name:string, params:Array<string>, body: Block, index:number): FunctionDec {
     return {
         type: "Function_declaration",
@@ -698,14 +750,26 @@ function make_fn(name:string, params:Array<string>, body: Block, index:number): 
     }
 }
 
+/**
+ * Makes a return statement
+ * @param expression The return value
+ * @param index The source code position of the 'return' keyword
+ * @returns A ReturnStatement statement
+ */
 function make_return(expression: Expression, index: number): ReturnStatement {
     return {
     type: "Return",
     index,
     expression,
-}
+    }
 }
 
+/**
+ * Makes a variable expression
+ * @param name The variable value
+ * @param index The source code position of the identifier
+ * @returns A Variable expression
+ */
 function make_variable(name: string, index: number): Variable {
     return {
         type: "Variable", 
@@ -714,6 +778,13 @@ function make_variable(name: string, index: number): Variable {
     }
 }
 
+/**
+ * Makes an Assignment expression
+ * @param name The variable name to assign to
+ * @param value The expression to assign
+ * @param index The source code position of the identifier
+ * @returns An Assignment expression
+ */
 function make_assignment(name: string, value: Expression, index: number): Assignment {
     return {
         type: "Assignment",
@@ -723,6 +794,12 @@ function make_assignment(name: string, value: Expression, index: number): Assign
     }
 }
 
+/**
+ * Makes a Block expression
+ * @param body The body of the block
+ * @param index The source code position of the block
+ * @returns A Block expression
+ */
 function make_block(body: Array<Expression | Statement>, index: number): Block {
     return {
     type: "Block",
@@ -732,6 +809,12 @@ function make_block(body: Array<Expression | Statement>, index: number): Block {
     }
 }
 
+/**
+ * Makes an Expression statement
+ * @param expression The statement's expression
+ * @param index The source code position of the statement
+ * @returns An Expression statement
+ */
 function make_expression_statement(expression:Expression, index: number): ExpressionStatement {
     return {
         type: "Expression_statement",
@@ -740,6 +823,14 @@ function make_expression_statement(expression:Expression, index: number): Expres
     }
 }
 
+/**
+ * Makes an if/else expression
+ * @param condition The 'if' condition to evaluate
+ * @param if_then The expression to evaluate if the condition is true
+ * @param if_else The optional expression to evaluate if the condition is false
+ * @param index The source code position of the expression
+ * @returns An If expression
+ */
 function make_if(condition: Expression, if_then:Expression, if_else:Expression | null, index:number): If {
     return {
         type: "If",
@@ -750,6 +841,14 @@ function make_if(condition: Expression, if_then:Expression, if_else:Expression |
     }
 }
 
+/**
+ * Makes an logical and/or expression
+ * @param right The rightmost expression
+ * @param left The leftmost expression
+ * @param operator The logical operator to use
+ * @param index The source code position of the expression
+ * @returns A Logic expression
+ */
 function make_logic(right:Expression, operator: "or" | "and", left:Expression, index:number): Logic {
     return {
         type: "Logic",
@@ -760,6 +859,14 @@ function make_logic(right:Expression, operator: "or" | "and", left:Expression, i
     }
 }
 
+/**
+ * Makes a While expression
+ * @param condition The condition to evaluate
+ * @param body The body of the loop
+ * @param name An optional label for the loop
+ * @param index The source code position of the expression
+ * @returns A While expression
+ */
 function make_while(condition: Expression, body: Block, name: string | null, index: number): While {
     return {
         type: "While",
@@ -770,6 +877,13 @@ function make_while(condition: Expression, body: Block, name: string | null, ind
     }
 }
 
+/**
+ * Makes a function call expression
+ * @param callee The identifier of the function
+ * @param args The arguments to the function
+ * @param index The source code position of the expression
+ * @returns A Call expression
+ */
 function make_call(callee:Variable, args:Array<Expression>, index:number): Call {
     return {
         type: "Call",

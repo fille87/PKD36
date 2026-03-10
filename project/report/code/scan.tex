@@ -1,22 +1,72 @@
-\begin{algorithm}
-\caption{scan}
-\KwResult{A sequence of Tokens}
-
-\While{$true$}{
-$ch \gets$ peek()\;
-
-\Switch{ch}{
-    \Case{"\textbackslash0"}{\If{scanner.errored}{\Return errors}\Else{output.push(eof token)\; \Return output}}
-    \Case{whitespace}{advance()\;}
-    \Case{'"'}{$s \gets scan\_string()$\; output.push(string literal token $s$)}
-    \Case{"<"}{\If{next token is $=$}{output.push(less than or equal token)}\Else{output.push(less than token)}}
-    \Case{","}{output.push(comma token)}
+% \begin{algorithm}
+% \caption{scan}
+% \KwResult{A sequence of Tokens}
+%
+% \While{$true$}{
+% $ch \gets$ peek()\;
+%
+% \Switch{ch}{
+%     \Case{"\textbackslash0"}{\If{scanner.errored}{\Return errors}\Else{output.push(eof token)\; \Return output}}
+%     \Case{whitespace}{advance()\;}
+%     \Case{'"'}{$s \gets scan\_string()$\; output.push(string literal token $s$)}
+%     \Case{"<"}{\If{next token is $=$}{output.push(less than or equal token)}\Else{output.push(less than token)}}
+%     \Case{","}{output.push(comma token)}
+%     ...
+%
+%     \Case{is digit}{$n \gets scan\_number()$\; output.push(number literal token $n$)}
+%     \Case{is letter or "\_"}{$ident \gets scan\_identifier()$\; \If{$ident$ is keyword $k$}{output.push(keyword token $k$)}\Else{output.push(identifier token $ident$)}}
+%     \Case{default}{errors.push(invalid character $ch$)}
+% }
+% advance()\;}
+%
+% \end{algorithm}
+\begin{lstlisting}
+switch (ch) {
+    case "\0":
+        if (!scanner.errored) {
+            output.push(make_token(TokenType.EOF));
+            return output;
+        } else {
+            return errors;
+        }
+    case "*":
+        if (peek(1) === "*") {
+            output.push(make_token(TokenType.POW));
+            advance();
+        } else {
+            output.push(make_token(TokenType.TIMES));
+        }
+        break;
+    case '"':
+        const s = scan_string();
+        if (s !== null) {
+            output.push(s);
+        }
+        continue;
     ...
-
-    \Case{is digit}{$n \gets scan\_number()$\; output.push(number literal token $n$)}
-    \Case{is letter or "\_"}{$ident \gets scan\_identifier()$\; \If{$ident$ is keyword $k$}{output.push(keyword token $k$)}\Else{output.push(identifier token $ident$)}}
-    \Case{default}{errors.push(invalid character $ch$)}
+    default:
+        if (is_whitespace(ch)) { 
+            break;
+        } else if (is_digit(ch)) {
+            const n = scan_number();
+            if (n !== null) {
+                output.push(n);
+            }
+            continue;
+        } else if (is_letter(ch) || ch == "_") {
+            const ident = scan_identifier();
+            const keyword = ph_lookup(keywords, ident.value as string);
+            output.push(
+                keyword !== undefined 
+                    ? token(ident.index, keyword) 
+                    : ident
+            );
+            continue;
+        } else {
+            error("Unrecognized character '" + ch + "'");
+            skip_line = true;
+        }
+        break;
 }
-advance()\;}
-
-\end{algorithm}
+advance();
+\end{lstlisting}

@@ -23,17 +23,21 @@ type Literal = number | string;
 
 type ScannerResult = Array<Token> | Array<UntypedscriptError>;
 
-export function token_length(token?: Token): number {
-    if (token === undefined) {
-        return 1;
-    }
+/**
+ * Gets the length in characters for a given Token
+ * @param token The token to get the length for
+ * @return The token's length in characters
+ */
+export function token_length(token: Token): number {
     switch (token.type) {
         case TokenType.STRING_LIT:
         case TokenType.NUMBER_LIT:
         case TokenType.IDENTIFIER:
-            return token.value!.toString().length // Safety: These token types always have a value
+            const value = token.value;
+            return value != undefined ? value.toString().length : 1;
         default:
-            return get_sign(token)!.toString().length; // Safety: Any unhandled cases already throw an error
+            // Safety: Any unhandled cases already throw an error
+            return get_sign(token)!.toString().length; 
     }
 }
 
