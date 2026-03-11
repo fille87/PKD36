@@ -444,7 +444,15 @@ function declare(expr: Declaration): void {
  * @throws Throws an error if trying to assign a value to a function identifier
  */
 function assign(expr: Assignment): Value {
-    const res = lookup(expr.name); // This will throw an error if not already declared
+    const res = lookup(expr.name);
+    if (res === undefined) {
+        throw error_with_length(
+            ErrorKind.RuntimeError, 
+            "Can't assign to variable '" + expr.name + "' that wasn't already declared in scope",
+            expr.index,
+            expr.name.length
+        );
+    }
     if (Array.isArray(res)) {
         throw error_with_length(ErrorKind.RuntimeError, "Cannot assign value to function identifier '" + expr.name + "'", expr.index, expr.name.length);
     }
